@@ -9,7 +9,7 @@ import { Phone, Video, Send, Paperclip, MessageSquare, Users, Settings, Sun, Moo
 import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
-  const { user, token, logout, loading } = useAuth();
+  const { user, token, logout, loading, updateProfile } = useAuth();
   const { socket, onlineUsers } = useSocket();
   const { startCall } = useCall();
   const router = useRouter();
@@ -47,6 +47,79 @@ export default function ChatPage() {
   const [conversationsLoading, setConversationsLoading] = useState(true);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  // Edit profile states & handlers
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileUpdating, setProfileUpdating] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const openEditProfile = () => {
+    setEditName(user?.name || '');
+    setEditUsername(user?.username || '');
+    setEditAvatarUrl(user?.avatarUrl || '');
+    setProfileError('');
+    setProfileSuccess(false);
+    setShowEditProfile(true);
+    setShowSettings(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setProfileError('');
+    setProfileSuccess(false);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_URL}/chat/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(body.message || 'Upload failed');
+      }
+
+      const data = await res.json();
+      setEditAvatarUrl(data.fileUrl);
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to upload image.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError('');
+    setProfileSuccess(false);
+    setProfileUpdating(true);
+
+    try {
+      await updateProfile(editName.trim(), editUsername.trim().toLowerCase(), editAvatarUrl);
+      setProfileSuccess(true);
+      setTimeout(() => {
+        setShowEditProfile(false);
+      }, 1500);
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to update profile.');
+    } finally {
+      setProfileUpdating(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !token) {
@@ -452,9 +525,13 @@ export default function ChatPage() {
                   </div>
                   <div className={styles.settingsSection}>
                     <span className={styles.settingsLabel}>Account</span>
+                    <button className={styles.logoutOption} onClick={openEditProfile} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', borderColor: 'var(--border-color)', marginBottom: '8px' }}>
+                      <span>Edit Profile</span>
+                      <Users size={14} />
+                    </button>
                     <button className={styles.logoutOption} onClick={logout}>
                       <span>Log Out</span>
-                      <LogOut size={16} />
+                      <LogOut size={14} />
                     </button>
                   </div>
                 </div>
@@ -651,6 +728,97 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      {showEditProfile && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Edit Profile</h3>
+              <button className={styles.modalClose} onClick={() => setShowEditProfile(false)}>✕</button>
+            </div>
+
+            <div className={styles.profileAvatarSection}>
+              <label className={styles.avatarEditContainer}>
+                <img 
+                  src={editAvatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${editUsername || 'default'}`} 
+                  alt="Avatar Preview" 
+                  className={styles.avatarEditImage} 
+                />
+                <div className={styles.avatarUploadOverlay}>
+                  <span>{uploadingAvatar ? 'Uploading...' : 'Change Photo'}</span>
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleAvatarUpload} 
+                  className={styles.avatarUploadInput} 
+                  disabled={uploadingAvatar}
+                />
+              </label>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Accepts JPG, PNG, GIF. Uploads to secure hosting.
+              </div>
+            </div>
+
+            <form onSubmit={handleProfileSubmit} className={styles.modalForm}>
+              {profileError && (
+                <div className={`${styles.profileFeedback} ${styles.profileError}`}>
+                  {profileError}
+                </div>
+              )}
+              {profileSuccess && (
+                <div className={`${styles.profileFeedback} ${styles.profileSuccess}`}>
+                  Profile updated successfully!
+                </div>
+              )}
+
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Display Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className={styles.input}
+                  required
+                  disabled={profileUpdating}
+                />
+              </div>
+
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Username</label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  className={styles.input}
+                  pattern="^[a-zA-Z0-9_]{3,15}$"
+                  title="Username must be 3-15 alphanumeric characters or underscores"
+                  required
+                  disabled={profileUpdating}
+                />
+              </div>
+
+              <div className={styles.modalBtnGroup}>
+                <button 
+                  type="button" 
+                  className={styles.btnCancel} 
+                  onClick={() => setShowEditProfile(false)}
+                  disabled={profileUpdating}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.btnSave} 
+                  disabled={profileUpdating || uploadingAvatar}
+                >
+                  {profileUpdating ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

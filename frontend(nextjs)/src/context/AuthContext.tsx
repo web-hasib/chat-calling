@@ -16,7 +16,9 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, name: string, username: string) => Promise<void>;
+  login: (emailOrUsername: string, password?: string) => Promise<void>;
+  signup: (email: string, name: string, username: string, password?: string) => Promise<void>;
+  updateProfile: (name: string, username: string, avatarUrl: string) => Promise<void>;
   logout: () => void;
   setOAuthToken: (token: string) => Promise<void>;
   clearError: () => void;
@@ -45,20 +47,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearError = () => setError(null);
 
-  const login = async (email: string, name: string, username: string) => {
+  const login = async (emailOrUsername: string, password?: string) => {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/auth/dev-login`, {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, username }),
+        body: JSON.stringify({ emailOrUsername, password }),
       });
-
-      if (res.status === 0 || !res.ok && res.status >= 500) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Server error (${res.status}): Could not connect to backend. Make sure DATABASE_URL is set in your .env file and Neon DB is reachable.`);
-      }
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({ message: 'Unknown error' }));
@@ -72,14 +69,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
       router.push('/chat');
     } catch (e: any) {
-      // Network-level failure (fetch itself throws)
-      if (e instanceof TypeError && e.message.includes('fetch')) {
-        setError('Cannot reach backend server. Is it running on http://localhost:5000?');
-      } else {
-        setError(e.message || 'Login failed. Please try again.');
-      }
+      setError(e.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const signup = async (email: string, name: string, username: string, password?: string) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, username, password }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(body.message || `Request failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setToken(data.token);
+      setUser(data.user);
+      router.push('/chat');
+    } catch (e: any) {
+      setError(e.message || 'Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (name: string, username: string, avatarUrl: string) => {
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, username, avatarUrl }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(body.message || `Request failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+    } catch (e: any) {
+      setError(e.message || 'Failed to update profile.');
+      throw e;
     }
   };
 
@@ -116,7 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, login, logout, setOAuthToken, clearError }}>
+    <AuthContext.Provider value={{ user, token, loading, error, login, signup, updateProfile, logout, setOAuthToken, clearError }}>
       {children}
     </AuthContext.Provider>
   );

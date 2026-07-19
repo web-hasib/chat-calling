@@ -16,6 +16,7 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const auth_service_1 = require("./auth.service");
+const jwt_auth_guard_1 = require("./jwt-auth.guard");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -30,15 +31,19 @@ let AuthController = class AuthController {
         const jwt = this.authService.generateJwt(req.user);
         return res.redirect(`http://localhost:3000/auth-callback?token=${jwt}`);
     }
-    async devLogin(body) {
-        const user = await this.authService.validateOAuthUser({
-            email: body.email,
-            username: body.username,
-            name: body.name || 'Developer User',
-            avatarUrl: body.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${body.username || 'dev'}`,
-        });
+    async signup(body) {
+        const user = await this.authService.register(body);
         const token = this.authService.generateJwt(user);
         return { token, user };
+    }
+    async login(body) {
+        const user = await this.authService.validateUserCredentials(body.emailOrUsername, body.password || '');
+        const token = this.authService.generateJwt(user);
+        return { token, user };
+    }
+    async updateProfile(req, body) {
+        const user = await this.authService.updateProfile(req.user.id, body);
+        return { user };
     }
 };
 exports.AuthController = AuthController;
@@ -75,12 +80,28 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "githubAuthRedirect", null);
 __decorate([
-    (0, common_1.Post)('dev-login'),
+    (0, common_1.Post)('signup'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
-], AuthController.prototype, "devLogin", null);
+], AuthController.prototype, "signup", null);
+__decorate([
+    (0, common_1.Post)('login'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Put)('profile'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateProfile", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

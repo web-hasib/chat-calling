@@ -61,7 +61,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      message: Array.isArray(message) ? message[0] : message, // extract first message if array (class-validator default)
+      message: Array.isArray(message) ? message.join(', ') : message, // join all messages if validation returns an array
     });
   }
 }
