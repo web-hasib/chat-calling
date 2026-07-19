@@ -1,0 +1,189 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(10, 12, 16, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+  color: var(--text-primary);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 24px;
+  max-width: 480px;
+  width: 90%;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+.avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  border: 3px solid var(--accent-primary);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+.ringingAvatar {
+  composes: avatar;
+  animation: pulse-ring 2s infinite;
+}
+
+.name {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.status {
+  color: var(--text-secondary);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.controls {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.btn {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btn:hover {
+  transform: scale(1.08);
+}
+
+.btnAnswer {
+  background-color: var(--accent-success);
+}
+
+.btnDecline {
+  background-color: var(--accent-danger);
+}
+
+/* Video Calling Styles */
+.videoContainer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+  overflow: hidden;
+}
+
+.remoteVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.localVideo {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 150px;
+  height: 220px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: var(--shadow-lg);
+  background: #111;
+  z-index: 10;
+  touch-action: none; /* Required for touch drag gestures */
+  cursor: grab;
+}
+
+.localVideo:active {
+  cursor: grabbing;
+}
+
+.videoControls {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 12px 24px;
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+.videoBtn {
+  composes: btn;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.videoBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.videoBtnActive {
+  composes: videoBtn;
+  background-color: var(--accent-primary);
+}
+
+.videoBtnMuted {
+  composes: videoBtn;
+  background-color: var(--accent-danger);
+}
+
+.videoBtnEnd {
+  composes: btn;
+  width: 48px;
+  height: 48px;
+  background-color: var(--accent-danger);
+}
+
+/* Call timer overlay styles */
+.timerOverlay {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  backdrop-filter: blur(6px);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timerDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-danger);
+  animation: pulse-ring 1s infinite;
+}
