@@ -64,7 +64,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('send-message')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; content?: string; fileUrl?: string; fileType?: string }
+    @MessageBody() data: { conversationId: string; content?: string; fileUrl?: string; fileType?: string; replyToId?: string }
   ) {
     const senderId = client.data.userId;
     if (!senderId) return;
@@ -74,12 +74,69 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data.conversationId,
       data.content,
       data.fileUrl,
-      data.fileType
+      data.fileType,
+      data.replyToId
     );
 
     // Broadcast message to all subscribers of this conversation
     this.server.emit(`message-${data.conversationId}`, message);
     this.server.emit('new-message-notification', message);
+  }
+
+  @SubscribeMessage('mark-as-read')
+  async handleMarkAsRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data?.conversationId) return;
+
+    const readInfo = await this.chatService.markAsRead(data.conversationId, userId);
+    if (readInfo.count > 0) {
+      this.server.emit(`messages-read-${data.conversationId}`, {
+        conversationId: data.conversationId,
+        readerId: userId,
+        readAt: readInfo.readAt,
+      });
+      this.server.emit('conversation-read-update', {
+        conversationId: data.conversationId,
+        readerId: userId,
+      });
+    }
+  }
+
+  @SubscribeMessage('toggle-reaction')
+  async handleToggleReaction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; messageId: string; emoji: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data?.messageId || !data?.emoji) return;
+
+    const updatedReactions = await this.chatService.toggleReaction(data.messageId, userId, data.emoji);
+
+    this.server.emit(`reaction-updated-${data.conversationId}`, {
+      messageId: data.messageId,
+      conversationId: data.conversationId,
+      reactions: updatedReactions,
+    });
+  }
+
+  @SubscribeMessage('delete-message')
+  async handleDeleteMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: string; conversationId: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data?.messageId) return;
+
+    const res = await this.chatService.deleteMessage(data.messageId, userId);
+    if (res) {
+      this.server.emit(`message-deleted-${res.conversationId}`, {
+        messageId: res.messageId,
+        conversationId: res.conversationId,
+      });
+    }
   }
 
   @SubscribeMessage('typing')
@@ -90,6 +147,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     if (!userId) return;
     this.server.emit(`typing-${data.conversationId}`, { userId, isTyping: data.isTyping });
+  }
+
+  @SubscribeMessage('update-conversation-settings')
+  async handleUpdateSettings(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: {
+      conversationId: string;
+      themeColor?: string;
+      themeGradient?: string;
+      bgImage?: string;
+      defaultEmoji?: string;
+      nicknameTargetUserId?: string;
+      nickname?: string;
+    }
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data?.conversationId) return;
+
+    const result = await this.chatService.updateConversationSettings(data.conversationId, userId, data);
+    if (!result) return;
+
+    this.server.emit(`conversation-updated-${data.conversationId}`, result);
+    this.server.emit('conversation-list-updated', { conversationId: data.conversationId, conversation: result.conversation });
+
+    if (result.systemMessage) {
+      this.server.emit(`message-${data.conversationId}`, result.systemMessage);
+      this.server.emit('new-message-notification', result.systemMessage);
+    }
   }
 
   // --- WebRTC signaling events ---

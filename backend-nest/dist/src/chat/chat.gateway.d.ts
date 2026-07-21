@@ -15,11 +15,33 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
         content?: string;
         fileUrl?: string;
         fileType?: string;
+        replyToId?: string;
+    }): Promise<void>;
+    handleMarkAsRead(client: Socket, data: {
+        conversationId: string;
+    }): Promise<void>;
+    handleToggleReaction(client: Socket, data: {
+        conversationId: string;
+        messageId: string;
+        emoji: string;
+    }): Promise<void>;
+    handleDeleteMessage(client: Socket, data: {
+        messageId: string;
+        conversationId: string;
     }): Promise<void>;
     handleTyping(client: Socket, data: {
         conversationId: string;
         isTyping: boolean;
     }): void;
+    handleUpdateSettings(client: Socket, data: {
+        conversationId: string;
+        themeColor?: string;
+        themeGradient?: string;
+        bgImage?: string;
+        defaultEmoji?: string;
+        nicknameTargetUserId?: string;
+        nickname?: string;
+    }): Promise<void>;
     handleCallUser(client: Socket, data: {
         to: string;
         offer: any;

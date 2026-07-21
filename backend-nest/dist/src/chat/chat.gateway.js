@@ -52,15 +52,69 @@ let ChatGateway = class ChatGateway {
         const senderId = client.data.userId;
         if (!senderId)
             return;
-        const message = await this.chatService.createMessage(senderId, data.conversationId, data.content, data.fileUrl, data.fileType);
+        const message = await this.chatService.createMessage(senderId, data.conversationId, data.content, data.fileUrl, data.fileType, data.replyToId);
         this.server.emit(`message-${data.conversationId}`, message);
         this.server.emit('new-message-notification', message);
+    }
+    async handleMarkAsRead(client, data) {
+        const userId = client.data.userId;
+        if (!userId || !data?.conversationId)
+            return;
+        const readInfo = await this.chatService.markAsRead(data.conversationId, userId);
+        if (readInfo.count > 0) {
+            this.server.emit(`messages-read-${data.conversationId}`, {
+                conversationId: data.conversationId,
+                readerId: userId,
+                readAt: readInfo.readAt,
+            });
+            this.server.emit('conversation-read-update', {
+                conversationId: data.conversationId,
+                readerId: userId,
+            });
+        }
+    }
+    async handleToggleReaction(client, data) {
+        const userId = client.data.userId;
+        if (!userId || !data?.messageId || !data?.emoji)
+            return;
+        const updatedReactions = await this.chatService.toggleReaction(data.messageId, userId, data.emoji);
+        this.server.emit(`reaction-updated-${data.conversationId}`, {
+            messageId: data.messageId,
+            conversationId: data.conversationId,
+            reactions: updatedReactions,
+        });
+    }
+    async handleDeleteMessage(client, data) {
+        const userId = client.data.userId;
+        if (!userId || !data?.messageId)
+            return;
+        const res = await this.chatService.deleteMessage(data.messageId, userId);
+        if (res) {
+            this.server.emit(`message-deleted-${res.conversationId}`, {
+                messageId: res.messageId,
+                conversationId: res.conversationId,
+            });
+        }
     }
     handleTyping(client, data) {
         const userId = client.data.userId;
         if (!userId)
             return;
         this.server.emit(`typing-${data.conversationId}`, { userId, isTyping: data.isTyping });
+    }
+    async handleUpdateSettings(client, data) {
+        const userId = client.data.userId;
+        if (!userId || !data?.conversationId)
+            return;
+        const result = await this.chatService.updateConversationSettings(data.conversationId, userId, data);
+        if (!result)
+            return;
+        this.server.emit(`conversation-updated-${data.conversationId}`, result);
+        this.server.emit('conversation-list-updated', { conversationId: data.conversationId, conversation: result.conversation });
+        if (result.systemMessage) {
+            this.server.emit(`message-${data.conversationId}`, result.systemMessage);
+            this.server.emit('new-message-notification', result.systemMessage);
+        }
     }
     handleCallUser(client, data) {
         const fromUserId = client.data.userId;
@@ -125,6 +179,30 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleMessage", null);
 __decorate([
+    (0, websockets_1.SubscribeMessage)('mark-as-read'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleMarkAsRead", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('toggle-reaction'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleToggleReaction", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('delete-message'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleDeleteMessage", null);
+__decorate([
     (0, websockets_1.SubscribeMessage)('typing'),
     __param(0, (0, websockets_1.ConnectedSocket)()),
     __param(1, (0, websockets_1.MessageBody)()),
@@ -132,6 +210,14 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", void 0)
 ], ChatGateway.prototype, "handleTyping", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('update-conversation-settings'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleUpdateSettings", null);
 __decorate([
     (0, websockets_1.SubscribeMessage)('call-user'),
     __param(0, (0, websockets_1.ConnectedSocket)()),

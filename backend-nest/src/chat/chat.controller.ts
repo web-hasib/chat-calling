@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -67,8 +69,44 @@ export class ChatController {
   }
 
   @Get('conversation/:id/messages')
-  async getMessages(@Param('id') id: string) {
-    return this.chatService.getMessages(id);
+  async getMessages(
+    @Param('id') id: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string
+  ) {
+    return this.chatService.getMessages(id, cursor, limit ? parseInt(limit, 10) : 20);
+  }
+
+  @Post('conversation/:id/read')
+  async markAsRead(@Req() req, @Param('id') id: string) {
+    return this.chatService.markAsRead(id, req.user.id);
+  }
+
+  @Post('message/:id/reaction')
+  async toggleReaction(@Req() req, @Param('id') id: string, @Body() body: { emoji: string }) {
+    return this.chatService.toggleReaction(id, req.user.id, body.emoji);
+  }
+
+  @Delete('message/:id')
+  async deleteMessage(@Req() req, @Param('id') id: string) {
+    return this.chatService.deleteMessage(id, req.user.id);
+  }
+
+  @Patch('conversation/:id/settings')
+  async updateSettings(
+    @Req() req,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      themeColor?: string;
+      themeGradient?: string;
+      bgImage?: string;
+      defaultEmoji?: string;
+      nicknameTargetUserId?: string;
+      nickname?: string;
+    }
+  ) {
+    return this.chatService.updateConversationSettings(id, req.user.id, body);
   }
 
   @Post('upload')

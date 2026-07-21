@@ -8,34 +8,40 @@ generator client {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  username      String         @unique
+  id            String                  @id @default(uuid())
+  email         String                  @unique
+  username      String                  @unique
   password      String?
   name          String?
   avatarUrl     String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
   conversations ConversationParticipant[]
   messages      Message[]
-  callsSent     CallLog[]      @relation("Caller")
-  callsReceived CallLog[]      @relation("Receiver")
+  reactions     MessageReaction[]
+  callsSent     CallLog[]               @relation("Caller")
+  callsReceived CallLog[]               @relation("Receiver")
 }
 
 model Conversation {
-  id           String                    @id @default(uuid())
-  isGroup      Boolean                   @default(false)
-  name         String?
-  createdAt    DateTime                  @default(now())
-  participants ConversationParticipant[]
-  messages     Message[]
-  calls        CallLog[]
+  id            String                    @id @default(uuid())
+  isGroup       Boolean                   @default(false)
+  name          String?
+  themeColor    String?                   @default("#0084FF")
+  themeGradient String?
+  bgImage       String?
+  defaultEmoji  String?                   @default("👍")
+  createdAt     DateTime                  @default(now())
+  participants  ConversationParticipant[]
+  messages      Message[]
+  calls         CallLog[]
 }
 
 model ConversationParticipant {
   id             String       @id @default(uuid())
   userId         String
   conversationId String
+  nickname       String?
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -43,15 +49,36 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String       @id @default(uuid())
+  id             String            @id @default(uuid())
   content        String?
   fileUrl        String?
   fileType       String?
-  createdAt      DateTime     @default(now())
+  isRead         Boolean           @default(false)
+  isSystem       Boolean           @default(false)
+  readAt         DateTime?
+  replyToId      String?
+  replyTo        Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]         @relation("MessageReplies")
+  reactions      MessageReaction[]
+  linkPreview    Json?
+  createdAt      DateTime          @default(now())
   senderId       String
   conversationId String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  emoji     String
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
 }
 
 model CallLog {

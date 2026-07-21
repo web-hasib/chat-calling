@@ -54,8 +54,20 @@ let ChatController = class ChatController {
     async createConversation(req, body) {
         return this.chatService.getOrCreateConversation(req.user.id, body.recipientId);
     }
-    async getMessages(id) {
-        return this.chatService.getMessages(id);
+    async getMessages(id, cursor, limit) {
+        return this.chatService.getMessages(id, cursor, limit ? parseInt(limit, 10) : 20);
+    }
+    async markAsRead(req, id) {
+        return this.chatService.markAsRead(id, req.user.id);
+    }
+    async toggleReaction(req, id, body) {
+        return this.chatService.toggleReaction(id, req.user.id, body.emoji);
+    }
+    async deleteMessage(req, id) {
+        return this.chatService.deleteMessage(id, req.user.id);
+    }
+    async updateSettings(req, id, body) {
+        return this.chatService.updateConversationSettings(id, req.user.id, body);
     }
     async uploadFile(file) {
         const fileUrl = await this.storageProvider.uploadFile(file);
@@ -93,10 +105,46 @@ __decorate([
 __decorate([
     (0, common_1.Get)('conversation/:id/messages'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('cursor')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "getMessages", null);
+__decorate([
+    (0, common_1.Post)('conversation/:id/read'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "markAsRead", null);
+__decorate([
+    (0, common_1.Post)('message/:id/reaction'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "toggleReaction", null);
+__decorate([
+    (0, common_1.Delete)('message/:id'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "deleteMessage", null);
+__decorate([
+    (0, common_1.Patch)('conversation/:id/settings'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "updateSettings", null);
 __decorate([
     (0, common_1.Post)('upload'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),

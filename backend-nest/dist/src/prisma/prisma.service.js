@@ -19,6 +19,7 @@ let PrismaService = class PrismaService {
     get conversation() { return this.client.conversation; }
     get conversationParticipant() { return this.client.conversationParticipant; }
     get message() { return this.client.message; }
+    get messageReaction() { return this.client.messageReaction; }
     get callLog() { return this.client.callLog; }
     constructor() {
         const pool = new pg_1.Pool({
