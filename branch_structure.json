@@ -1,0 +1,21 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat_migrateToTailwind",
+    "hasib",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "feat_migrateToTailwind": "main",
+    "hasib": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "feat_migrateToTailwind",
+    "hasib",
+    "origin"
+  ]
+}
