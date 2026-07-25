@@ -43,6 +43,13 @@ import {
   Sparkles,
   Upload,
   Copy,
+  RotateCw,
+  Pencil,
+  Undo2,
+  Eye,
+  Download,
+  Crop,
+  Type,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -67,6 +74,53 @@ const BG_PRESETS = [
 ];
 
 const DEFAULT_EMOJI_PRESETS = ['👍', '❤️', '🔥', '😂', '⚡', '🎉', '💩', '💯', '👏', '🥳', '😍', '🚀'];
+
+const compressImage = async (file: File, quality: number = 0.75, maxDimension: number = 1600): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file);
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(file);
+
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return resolve(file);
+          const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = () => resolve(file);
+    img.src = url;
+  });
+};
 
 export default function ChatPage() {
   const { user, token, logout, loading, updateProfile } = useAuth();
@@ -116,6 +170,74 @@ export default function ChatPage() {
   const [activeCustomEmojiMsgId, setActiveCustomEmojiMsgId] = useState<string | null>(null);
   const [deleteConfirmMsgId, setDeleteConfirmMsgId] = useState<string | null>(null);
   const [reactionUpdatingMsgId, setReactionUpdatingMsgId] = useState<string | null>(null);
+
+  const [isSwitchingThread, setIsSwitchingThread] = useState(false);
+  const prevScrollHeightRef = useRef<number | null>(null);
+  const [prependedMsgIds, setPrependedMsgIds] = useState<Set<string>>(new Set());
+  const messageCacheRef = useRef<Record<string, { messages: any[]; hasMore: boolean; nextCursor: string | null }>>({});
+
+  // WhatsApp Web Image Editor & Media Upload Preview Modal state
+  const [pendingMediaItems, setPendingMediaItems] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
+  const [mediaCaptions, setMediaCaptions] = useState<Record<number, string>>({});
+  const [mediaFilters, setMediaFilters] = useState<Record<number, string>>({});
+  const [mediaRotations, setMediaRotations] = useState<Record<number, number>>({});
+  const [isDrawMode, setIsDrawMode] = useState<boolean>(false);
+  const [drawColor, setDrawColor] = useState<string>('#ef4444');
+  const [isViewOnce, setIsViewOnce] = useState<boolean>(false);
+  const [showFilterPicker, setShowFilterPicker] = useState<boolean>(false);
+  const [showMediaPreviewModal, setShowMediaPreviewModal] = useState<boolean>(false);
+  const [sendingMedia, setSendingMedia] = useState<boolean>(false);
+  const [qualityMode, setQualityMode] = useState<'standard' | 'hd'>('standard');
+
+  const drawCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = useRef(false);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawMode || !drawCanvasRef.current) return;
+    const canvas = drawCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+    ctx.beginPath();
+    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+    ctx.strokeStyle = drawColor;
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    isDrawingRef.current = true;
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current || !isDrawMode || !drawCanvasRef.current) return;
+    const canvas = drawCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+  };
+
+  const clearDrawing = () => {
+    if (!drawCanvasRef.current) return;
+    const canvas = drawCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  };
 
   const messageAreaRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLInputElement | null>(null);
@@ -479,14 +601,39 @@ export default function ChatPage() {
     }
   };
 
+  // Auto-sync active conversation messages into memory cache
+  useEffect(() => {
+    if (activeConvo?.id && messages) {
+      messageCacheRef.current[activeConvo.id] = {
+        messages,
+        hasMore,
+        nextCursor,
+      };
+    }
+  }, [messages, activeConvo, hasMore, nextCursor]);
+
   const selectConvo = async (convo: any) => {
     setActiveConvo(convo);
     setViewMode('chat');
     setIsRecipientTyping(false);
     setReplyingTo(null);
     setActiveReactionPickerId(null);
+    setActiveCustomEmojiMsgId(null);
+    setDeleteConfirmMsgId(null);
     setShowDetails(false);
     autoScrollBottomRef.current = true;
+
+    // Instant Cache Hydration
+    const cached = messageCacheRef.current[convo.id];
+    if (cached) {
+      setMessages(cached.messages);
+      setHasMore(cached.hasMore);
+      setNextCursor(cached.nextCursor);
+      setIsSwitchingThread(false);
+    } else {
+      setIsSwitchingThread(true);
+      setMessages([]);
+    }
 
     try {
       const res = await fetch(`${API_URL}/chat/conversation/${convo.id}/messages?limit=20`, {
@@ -495,15 +642,28 @@ export default function ChatPage() {
       if (!res.ok) throw new Error();
       const data = await res.json();
 
+      let fetchedMsgs: any[] = [];
+      let fetchedHasMore = false;
+      let fetchedNextCursor: string | null = null;
+
       if (Array.isArray(data)) {
-        setMessages(data);
-        setHasMore(false);
-        setNextCursor(null);
+        fetchedMsgs = data;
       } else {
-        setMessages(data.messages || []);
-        setHasMore(data.hasMore || false);
-        setNextCursor(data.nextCursor || null);
+        fetchedMsgs = data.messages || [];
+        fetchedHasMore = data.hasMore || false;
+        fetchedNextCursor = data.nextCursor || null;
       }
+
+      // Sync into memory cache
+      messageCacheRef.current[convo.id] = {
+        messages: fetchedMsgs,
+        hasMore: fetchedHasMore,
+        nextCursor: fetchedNextCursor,
+      };
+
+      setMessages(fetchedMsgs);
+      setHasMore(fetchedHasMore);
+      setNextCursor(fetchedNextCursor);
 
       if (socket) {
         socket.emit('mark-as-read', { conversationId: convo.id });
@@ -514,6 +674,8 @@ export default function ChatPage() {
       }).catch(() => {});
     } catch (e) {
       console.error('Error fetching messages', e);
+    } finally {
+      setIsSwitchingThread(false);
     }
   };
 
@@ -523,10 +685,12 @@ export default function ChatPage() {
     setLoadingMore(true);
     autoScrollBottomRef.current = false;
 
-    try {
-      const container = messageAreaRef.current;
-      const oldScrollHeight = container ? container.scrollHeight : 0;
+    const container = messageAreaRef.current;
+    if (container) {
+      prevScrollHeightRef.current = container.scrollHeight;
+    }
 
+    try {
       const res = await fetch(`${API_URL}/chat/conversation/${activeConvo.id}/messages?limit=20&cursor=${nextCursor}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -537,15 +701,20 @@ export default function ChatPage() {
       const newNextCursor = Array.isArray(data) ? null : data.nextCursor;
       const newHasMore = Array.isArray(data) ? false : data.hasMore;
 
+      // Track newly prepended message IDs for subtle fade-in
+      const prependedIds = new Set<string>(newMsgs.map((m: any) => String(m.id)));
+      setPrependedMsgIds(prependedIds);
+
       setMessages((prev) => [...newMsgs, ...prev]);
       setNextCursor(newNextCursor);
       setHasMore(newHasMore);
 
-      setTimeout(() => {
-        if (container) {
-          container.scrollTop = container.scrollHeight - oldScrollHeight;
+      requestAnimationFrame(() => {
+        if (container && prevScrollHeightRef.current !== null) {
+          container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
+          prevScrollHeightRef.current = null;
         }
-      }, 50);
+      });
     } catch (e) {
       console.error('Error loading older messages', e);
     } finally {
@@ -712,36 +881,164 @@ export default function ChatPage() {
     });
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeConvo || !socket) return;
+  const isCanvasBlank = (canvas: HTMLCanvasElement): boolean => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return true;
+    const pixelBuffer = new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+    return !pixelBuffer.some((color) => color !== 0);
+  };
 
-    const formData = new FormData();
-    formData.append('file', file);
-    setUploading(true);
+  const synthesizeEditedMedia = async (
+    item: { file: File; previewUrl: string },
+    filter: string,
+    rotation: number,
+    drawingCanvas: HTMLCanvasElement | null
+  ): Promise<File> => {
+    if (!item.file.type.startsWith('image/')) return item.file;
+    const hasDrawing = drawingCanvas && !isCanvasBlank(drawingCanvas);
+    if (filter === 'none' && rotation === 0 && !hasDrawing) {
+      return item.file;
+    }
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const width = img.width;
+        const height = img.height;
+
+        const isRotatedQuarter = rotation === 90 || rotation === 270;
+        const canvas = document.createElement('canvas');
+        canvas.width = isRotatedQuarter ? height : width;
+        canvas.height = isRotatedQuarter ? width : height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(item.file);
+
+        if (filter === 'grayscale') ctx.filter = 'grayscale(100%)';
+        else if (filter === 'sepia') ctx.filter = 'sepia(100%)';
+        else if (filter === 'warm') ctx.filter = 'sepia(50%) contrast(110%) brightness(105%)';
+        else if (filter === 'cool') ctx.filter = 'hue-rotate(180deg) saturate(120%)';
+        else if (filter === 'invert') ctx.filter = 'invert(100%)';
+
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.drawImage(img, -width / 2, -height / 2, width, height);
+        ctx.restore();
+        ctx.filter = 'none';
+
+        if (hasDrawing && drawingCanvas) {
+          ctx.drawImage(drawingCanvas, 0, 0, canvas.width, canvas.height);
+        }
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return resolve(item.file);
+            const editedFile = new File([blob], item.file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(editedFile);
+          },
+          'image/jpeg',
+          0.92
+        );
+      };
+      img.onerror = () => resolve(item.file);
+      img.src = item.previewUrl;
+    });
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !activeConvo) return;
+
+    const newItems = files.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    setPendingMediaItems((prev) => [...prev, ...newItems]);
+    setShowMediaPreviewModal(true);
+    e.target.value = '';
+  };
+
+  const handleRemoveThumbnail = (indexToRemove: number) => {
+    setPendingMediaItems((prev) => {
+      const updated = prev.filter((_, idx) => idx !== indexToRemove);
+      if (updated.length === 0) {
+        setShowMediaPreviewModal(false);
+      }
+      return updated;
+    });
+    if (activeMediaIndex >= indexToRemove && activeMediaIndex > 0) {
+      setActiveMediaIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleCancelMediaPreview = () => {
+    pendingMediaItems.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    setPendingMediaItems([]);
+    setActiveMediaIndex(0);
+    setMediaCaptions({});
+    setMediaFilters({});
+    setMediaRotations({});
+    setIsDrawMode(false);
+    setShowFilterPicker(false);
+    setShowMediaPreviewModal(false);
+  };
+
+  const handleSendMediaWithCaption = async () => {
+    if (!pendingMediaItems.length || !activeConvo || !socket || sendingMedia) return;
+    setSendingMedia(true);
     autoScrollBottomRef.current = true;
 
     try {
-      const res = await fetch(`${API_URL}/chat/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
+      for (let i = 0; i < pendingMediaItems.length; i++) {
+        const item = pendingMediaItems[i];
+        const filter = mediaFilters[i] || 'none';
+        const rotation = mediaRotations[i] || 0;
+        const caption = mediaCaptions[i] || '';
 
-      socket.emit('send-message', {
-        conversationId: activeConvo.id,
-        fileUrl: data.fileUrl,
-        fileType: data.fileType,
-        replyToId: replyingTo ? replyingTo.id : undefined,
-      });
+        let editedFile = await synthesizeEditedMedia(
+          item,
+          filter,
+          rotation,
+          i === activeMediaIndex ? drawCanvasRef.current : null
+        );
+
+        if (qualityMode === 'standard' && editedFile.type.startsWith('image/')) {
+          editedFile = await compressImage(editedFile, 0.75, 1600);
+        }
+
+        const formData = new FormData();
+        formData.append('file', editedFile);
+
+        const res = await fetch(`${API_URL}/chat/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+
+        socket.emit('send-message', {
+          conversationId: activeConvo.id,
+          content: caption.trim() || undefined,
+          fileUrl: data.fileUrl,
+          fileType: data.fileType,
+          isViewOnce: isViewOnce || undefined,
+          replyToId: replyingTo ? replyingTo.id : undefined,
+        });
+      }
+
       setReplyingTo(null);
+      handleCancelMediaPreview();
     } catch (err) {
       console.error(err);
       alert('File upload failed. Ensure storage keys are valid.');
     } finally {
-      setUploading(false);
+      setSendingMedia(false);
     }
   };
 
@@ -1115,288 +1412,705 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Main Chat Container Area with details sidebar support */}
-            <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
-              {/* Chat Area Scrollbox */}
-              <div
-                className={`${styles.messageArea} ${activeBgImage ? styles.messageAreaCustomBg : ''}`}
-                style={activeBgImage ? { backgroundImage: `url(${activeBgImage})` } : undefined}
-                ref={messageAreaRef}
-                onScroll={handleScrollMessages}
-              >
-                {/* Feature 3: Pagination Load More Header */}
-                {hasMore && (
-                  <div className={styles.loadMoreContainer}>
-                    <button className={styles.loadMoreBtn} onClick={loadMoreMessages} disabled={loadingMore}>
-                      {loadingMore ? <Loader2 className={styles.spinLoader} size={14} /> : 'Load older messages'}
+            {/* Main Chat Body Container Area (Row: Main Column + Side Panel) */}
+            <div className={styles.chatBodyRow}>
+              {/* Left Column: Messages, Reply Drawer & Input Panel */}
+              <div className={styles.chatMainColumn}>
+                {/* Chat Area Scrollbox */}
+                <div
+                  className={`${styles.messageArea} ${activeBgImage ? styles.messageAreaCustomBg : ''}`}
+                  style={activeBgImage ? { backgroundImage: `url(${activeBgImage})` } : undefined}
+                  ref={messageAreaRef}
+                  onScroll={handleScrollMessages}
+                >
+                  {/* Feature 3: Pagination Load More Header */}
+                  {hasMore && (
+                    <div className={styles.loadMoreContainer}>
+                      <button className={styles.loadMoreBtn} onClick={loadMoreMessages} disabled={loadingMore}>
+                        {loadingMore ? <Loader2 className={styles.spinLoader} size={14} /> : 'Load older messages'}
+                      </button>
+                    </div>
+                  )}
+
+                  {isSwitchingThread ? (
+                    <div className={styles.skeletonContainer}>
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonReceived}`} style={{ width: '60%', height: '42px' }} />
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonSent}`} style={{ width: '45%', height: '36px' }} />
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonReceived}`} style={{ width: '70%', height: '54px' }} />
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonSent}`} style={{ width: '35%', height: '36px' }} />
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonReceived}`} style={{ width: '50%', height: '42px' }} />
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonSent}`} style={{ width: '55%', height: '48px' }} />
+                    </div>
+                  ) : (
+                    messages.map((msg, index) => {
+                      if (msg.isSystem) {
+                        return (
+                          <div key={msg.id || index} className={styles.systemMessageWrapper}>
+                            <div className={styles.systemMessagePill}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const isSentByMe = msg.senderId === user.id;
+                      const groupedReactions = getGroupedReactions(msg.reactions);
+                      const isPrepended = prependedMsgIds.has(msg.id);
+
+                      return (
+                        <div
+                          key={msg.id || index}
+                          className={`${isSentByMe ? styles.msgSentWrapper : styles.msgReceivedWrapper} ${isPrepended ? styles.msgPrependFadeIn : ''}`}
+                        >
+                        {/* Hover Action Bar */}
+                        <div
+                          className={
+                            deleteConfirmMsgId === msg.id
+                              ? `${styles.msgActionsHover} ${styles.msgActionsHoverActive}`
+                              : styles.msgActionsHover
+                          }
+                        >
+                          <button
+                            className={styles.actionIconBtn}
+                            onClick={() =>
+                              setActiveReactionPickerId(activeReactionPickerId === msg.id ? null : msg.id)
+                            }
+                            title="React with Emoji"
+                          >
+                            <Smile size={14} />
+                          </button>
+                          <button
+                            className={styles.actionIconBtn}
+                            onClick={() => handleInitiateReply(msg)}
+                            title="Reply to Message"
+                          >
+                            <Reply size={14} />
+                          </button>
+                          {isSentByMe && (
+                            <TooltipProvider delayDuration={0}>
+                              <Tooltip
+                                open={deleteConfirmMsgId === msg.id}
+                                onOpenChange={(open) => !open && setDeleteConfirmMsgId(null)}
+                              >
+                                <TooltipTrigger asChild>
+                                  <button
+                                    className={styles.actionIconBtnDanger}
+                                    onClick={() =>
+                                      setDeleteConfirmMsgId(
+                                        deleteConfirmMsgId === msg.id ? null : msg.id
+                                      )
+                                    }
+                                    title="Delete Message"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" sideOffset={8}>
+                                  <span className={styles.deleteTooltipText}>Delete for everyone?</span>
+                                  <button
+                                    type="button"
+                                    className={styles.deleteTooltipConfirmBtn}
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation();
+                                      confirmDeleteMessage(msg.id);
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      confirmDeleteMessage(msg.id);
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.deleteTooltipCancelBtn}
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteConfirmMsgId(null);
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteConfirmMsgId(null);
+                                    }}
+                                    title="Cancel"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+
+                        {/* Emoji Reaction Picker Bar */}
+                        {activeReactionPickerId === msg.id && (
+                          <div className={styles.reactionPicker} ref={reactionPickerRef}>
+                            {['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) => (
+                              <button
+                                key={emoji}
+                                className={styles.reactionOption}
+                                onClick={() => handleToggleReaction(msg.id, emoji)}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                            <button
+                              className={styles.reactionOptionPlus}
+                              onClick={() => {
+                                setActiveReactionPickerId(null);
+                                setActiveCustomEmojiMsgId(msg.id);
+                              }}
+                              title="React with any emoji"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Custom Any Emoji Picker Popover */}
+                        {activeCustomEmojiMsgId === msg.id && (
+                          <div className={styles.customEmojiPickerPopover} ref={customReactionPickerRef}>
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => handleToggleReaction(msg.id, emojiData.emoji)}
+                              theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+                              searchDisabled={false}
+                              width={320}
+                              height={380}
+                            />
+                          </div>
+                        )}
+
+                        {/* Message Bubble Box */}
+                        <div className={isSentByMe ? styles.msgSent : styles.msgReceived}>
+                          {/* Quoted Reply Box inside Message */}
+                          {msg.replyTo && (
+                            <div className={styles.quotedReplyBox}>
+                              <div className={styles.quotedSender}>
+                                Replying to {msg.replyTo.sender?.name || 'Message'}
+                              </div>
+                              <div className={styles.quotedContent}>
+                                {msg.replyTo.content || (msg.replyTo.fileUrl ? 'Attachment File' : '')}
+                              </div>
+                            </div>
+                          )}
+
+                            {msg.fileUrl ? (
+                              msg.fileType === 'IMAGE' ? (
+                                <div
+                                  className={styles.msgContentHasMedia}
+                                  style={
+                                    isSentByMe
+                                      ? activeThemeGradient
+                                        ? { background: activeThemeGradient }
+                                        : activeThemeColor
+                                        ? { background: activeThemeColor }
+                                        : undefined
+                                      : undefined
+                                  }
+                                >
+                                  <img
+                                    src={msg.fileUrl}
+                                    alt="Attachment"
+                                    className={styles.attachmentImage}
+                                    onClick={() => window.open(msg.fileUrl, '_blank')}
+                                  />
+                                  {msg.content && <div className={styles.imageCaptionText}>{msg.content}</div>}
+                                </div>
+                              ) : (
+                                <div
+                                  className={styles.msgContent}
+                                  style={
+                                    isSentByMe
+                                      ? activeThemeGradient
+                                        ? { background: activeThemeGradient }
+                                        : activeThemeColor
+                                        ? { background: activeThemeColor }
+                                        : undefined
+                                      : undefined
+                                  }
+                                >
+                                  <a
+                                    href={msg.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: 'inherit', textDecoration: 'underline' }}
+                                  >
+                                    View Attachment File
+                                  </a>
+                                  {msg.content && <div style={{ marginTop: '6px' }}>{msg.content}</div>}
+                                </div>
+                              )
+                            ) : (
+                              <div
+                                className={styles.msgContent}
+                                style={
+                                  isSentByMe
+                                    ? activeThemeGradient
+                                      ? { background: activeThemeGradient }
+                                      : activeThemeColor
+                                      ? { background: activeThemeColor }
+                                      : undefined
+                                    : undefined
+                                }
+                              >
+                                {msg.content}
+                              </div>
+                            )}
+
+                            {/* Rich Link Preview Card */}
+                            {msg.linkPreview && (
+                              <a
+                                href={msg.linkPreview.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.linkCard}
+                              >
+                                {msg.linkPreview.image && (
+                                  <img
+                                    src={msg.linkPreview.image}
+                                    alt={msg.linkPreview.title || 'Link preview'}
+                                    className={styles.linkImage}
+                                  />
+                                )}
+                                <div className={styles.linkMeta}>
+                                  {msg.linkPreview.siteName && (
+                                    <div className={styles.linkSiteName}>
+                                      {msg.linkPreview.siteName} <ExternalLink size={10} style={{ display: 'inline', marginLeft: 2 }} />
+                                    </div>
+                                  )}
+                                  {msg.linkPreview.title && (
+                                    <div className={styles.linkTitle}>{msg.linkPreview.title}</div>
+                                  )}
+                                  {msg.linkPreview.description && (
+                                    <div className={styles.linkDescription}>{msg.linkPreview.description}</div>
+                                  )}
+                                </div>
+                              </a>
+                            )}
+                          </div>
+
+                        {/* Reaction Badges Pill Row */}
+                        {(groupedReactions.length > 0 || reactionUpdatingMsgId === msg.id) && (
+                          <div className={styles.reactionPills}>
+                            {groupedReactions.map((r) => (
+                              <button
+                                key={r.emoji}
+                                className={r.userReacted ? styles.reactionBadgeActive : styles.reactionBadge}
+                                onClick={() => handleToggleReaction(msg.id, r.emoji)}
+                                disabled={reactionUpdatingMsgId === msg.id}
+                                style={r.userReacted ? { borderColor: activeThemeColor } : undefined}
+                              >
+                                <span>{r.emoji}</span>
+                                <span>{r.count}</span>
+                              </button>
+                            ))}
+                            {reactionUpdatingMsgId === msg.id && (
+                              <div className={styles.reactionLoadingSpinner}>
+                                <Loader2 size={13} className={styles.spinLoader} />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Timestamp & Read Status Receipts */}
+                        <div className={styles.msgInfo}>
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isSentByMe && (
+                            <span className={styles.readReceipt}>
+                              {msg.id.startsWith('pending') ? (
+                                <Check size={12} />
+                              ) : msg.isRead ? (
+                                <CheckCheck size={13} className={styles.tickBlue} style={{ color: activeThemeColor }} />
+                              ) : (
+                                <CheckCheck size={13} />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+
+                  {/* Typing Indicator */}
+                  {isRecipientTyping && (
+                    <div className={styles.msgReceived}>
+                      <div className={styles.msgContent} style={{ padding: '8px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{getRecipientDisplayName(activeConvo)} is typing</span>
+                        <MoreHorizontal className="animate-pulse" size={16} style={{ color: activeThemeColor }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Feature 2: Reply Drawer Banner above Input Drawer */}
+                {replyingTo && (
+                  <div className={styles.replyDrawer} style={{ borderLeftColor: activeThemeColor }}>
+                    <div className={styles.replyDrawerText}>
+                      <span className={styles.replyDrawerSender} style={{ color: activeThemeColor }}>
+                        Replying to {replyingTo.sender?.name || 'Message'}
+                      </span>
+                      <span className={styles.replyDrawerContent}>
+                        {replyingTo.content || (replyingTo.fileUrl ? 'Attachment File' : '')}
+                      </span>
+                    </div>
+                    <button className={styles.replyDrawerClose} onClick={() => setReplyingTo(null)}>
+                      <X size={16} />
                     </button>
                   </div>
                 )}
 
-                {messages.map((msg, index) => {
-                  if (msg.isSystem) {
-                    return (
-                      <div key={msg.id || index} className={styles.systemMessageWrapper}>
-                        <div className={styles.systemMessagePill}>
-                          {msg.content}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const isSentByMe = msg.senderId === user.id;
-                  const groupedReactions = getGroupedReactions(msg.reactions);
-
-                  return (
-                    <div key={msg.id || index} className={isSentByMe ? styles.msgSentWrapper : styles.msgReceivedWrapper}>
-                      {/* Hover Action Bar */}
-                      <div
-                        className={
-                          deleteConfirmMsgId === msg.id
-                            ? `${styles.msgActionsHover} ${styles.msgActionsHoverActive}`
-                            : styles.msgActionsHover
-                        }
-                      >
-                        <button
-                          className={styles.actionIconBtn}
-                          onClick={() =>
-                            setActiveReactionPickerId(activeReactionPickerId === msg.id ? null : msg.id)
-                          }
-                          title="React with Emoji"
-                        >
-                          <Smile size={14} />
-                        </button>
-                        <button
-                          className={styles.actionIconBtn}
-                          onClick={() => handleInitiateReply(msg)}
-                          title="Reply to Message"
-                        >
-                          <Reply size={14} />
-                        </button>
-                        {isSentByMe && (
-                          <TooltipProvider delayDuration={0}>
-                            <Tooltip
-                              open={deleteConfirmMsgId === msg.id}
-                              onOpenChange={(open) => !open && setDeleteConfirmMsgId(null)}
-                            >
-                              <TooltipTrigger asChild>
-                                <button
-                                  className={styles.actionIconBtnDanger}
-                                  onClick={() =>
-                                    setDeleteConfirmMsgId(
-                                      deleteConfirmMsgId === msg.id ? null : msg.id
-                                    )
-                                  }
-                                  title="Delete Message"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" sideOffset={8}>
-                                <span className={styles.deleteTooltipText}>Delete for everyone?</span>
-                                <button
-                                  type="button"
-                                  className={styles.deleteTooltipConfirmBtn}
-                                  onPointerDown={(e) => {
-                                    e.stopPropagation();
-                                    confirmDeleteMessage(msg.id);
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    confirmDeleteMessage(msg.id);
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                                <button
-                                  type="button"
-                                  className={styles.deleteTooltipCancelBtn}
-                                  onPointerDown={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteConfirmMsgId(null);
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteConfirmMsgId(null);
-                                  }}
-                                  title="Cancel"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-
-                      {/* Emoji Reaction Picker Bar */}
-                      {activeReactionPickerId === msg.id && (
-                        <div className={styles.reactionPicker} ref={reactionPickerRef}>
-                          {['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) => (
-                            <button
-                              key={emoji}
-                              className={styles.reactionOption}
-                              onClick={() => handleToggleReaction(msg.id, emoji)}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                          <button
-                            className={styles.reactionOptionPlus}
-                            onClick={() => {
-                              setActiveReactionPickerId(null);
-                              setActiveCustomEmojiMsgId(msg.id);
-                            }}
-                            title="React with any emoji"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Custom Any Emoji Picker Popover */}
-                      {activeCustomEmojiMsgId === msg.id && (
-                        <div className={styles.customEmojiPickerPopover} ref={customReactionPickerRef}>
-                          <EmojiPicker
-                            onEmojiClick={(emojiData) => handleToggleReaction(msg.id, emojiData.emoji)}
-                            theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
-                            searchDisabled={false}
-                            width={320}
-                            height={380}
-                          />
-                        </div>
-                      )}
-
-                      {/* Message Bubble Box */}
-                      <div className={isSentByMe ? styles.msgSent : styles.msgReceived}>
-                        {/* Quoted Reply Box inside Message */}
-                        {msg.replyTo && (
-                          <div className={styles.quotedReplyBox}>
-                            <div className={styles.quotedSender}>
-                              Replying to {msg.replyTo.sender?.name || 'Message'}
-                            </div>
-                            <div className={styles.quotedContent}>
-                              {msg.replyTo.content || (msg.replyTo.fileUrl ? 'Attachment File' : '')}
-                            </div>
-                          </div>
-                        )}
-
-                        <div
-                          className={styles.msgContent}
-                          style={
-                            isSentByMe
-                              ? activeThemeGradient
-                                ? { background: activeThemeGradient }
-                                : activeThemeColor
-                                ? { background: activeThemeColor }
-                                : undefined
-                              : undefined
-                          }
-                        >
-                          {msg.fileUrl ? (
-                            msg.fileType === 'IMAGE' ? (
-                              <img src={msg.fileUrl} alt="Attachment" className={styles.attachmentImage} />
-                            ) : (
-                              <a
-                                href={msg.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: 'inherit', textDecoration: 'underline' }}
-                              >
-                                View Attachment File
-                              </a>
-                            )
-                          ) : (
-                            msg.content
-                          )}
-
-                          {/* Rich Link Preview Card */}
-                          {msg.linkPreview && (
-                            <a
-                              href={msg.linkPreview.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={styles.linkCard}
-                            >
-                              {msg.linkPreview.image && (
-                                <img
-                                  src={msg.linkPreview.image}
-                                  alt={msg.linkPreview.title || 'Link preview'}
-                                  className={styles.linkImage}
-                                />
-                              )}
-                              <div className={styles.linkMeta}>
-                                {msg.linkPreview.siteName && (
-                                  <div className={styles.linkSiteName}>
-                                    {msg.linkPreview.siteName} <ExternalLink size={10} style={{ display: 'inline', marginLeft: 2 }} />
-                                  </div>
-                                )}
-                                {msg.linkPreview.title && (
-                                  <div className={styles.linkTitle}>{msg.linkPreview.title}</div>
-                                )}
-                                {msg.linkPreview.description && (
-                                  <div className={styles.linkDescription}>{msg.linkPreview.description}</div>
-                                )}
-                              </div>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Reaction Badges Pill Row */}
-                      {(groupedReactions.length > 0 || reactionUpdatingMsgId === msg.id) && (
-                        <div className={styles.reactionPills}>
-                          {groupedReactions.map((r) => (
-                            <button
-                              key={r.emoji}
-                              className={r.userReacted ? styles.reactionBadgeActive : styles.reactionBadge}
-                              onClick={() => handleToggleReaction(msg.id, r.emoji)}
-                              disabled={reactionUpdatingMsgId === msg.id}
-                              style={r.userReacted ? { borderColor: activeThemeColor } : undefined}
-                            >
-                              <span>{r.emoji}</span>
-                              <span>{r.count}</span>
-                            </button>
-                          ))}
-                          {reactionUpdatingMsgId === msg.id && (
-                            <div className={styles.reactionLoadingSpinner}>
-                              <Loader2 size={13} className={styles.spinLoader} />
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Timestamp & Read Status Receipts */}
-                      <div className={styles.msgInfo}>
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        {isSentByMe && (
-                          <span className={styles.readReceipt}>
-                            {msg.id.startsWith('pending') ? (
-                              <Check size={12} />
-                            ) : msg.isRead ? (
-                              <CheckCheck size={13} className={styles.tickBlue} style={{ color: activeThemeColor }} />
-                            ) : (
-                              <CheckCheck size={13} />
-                            )}
-                          </span>
-                        )}
-                      </div>
+                {/* Chat Input Panel */}
+                <div className={styles.inputPanel}>
+                  {/* Full Emoji Picker Popover */}
+                  {showEmojiPicker && (
+                    <div className={styles.emojiPickerPopover} ref={emojiPickerRef}>
+                      <EmojiPicker
+                        onEmojiClick={handleEmojiClick}
+                        theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+                        searchDisabled={false}
+                        width={340}
+                        height={400}
+                      />
                     </div>
-                  );
-                })}
+                  )}
 
-                {/* Typing Indicator */}
-                {isRecipientTyping && (
-                  <div className={styles.msgReceived}>
-                    <div className={styles.msgContent} style={{ padding: '8px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{getRecipientDisplayName(activeConvo)} is typing</span>
-                      <MoreHorizontal className="animate-pulse" size={16} style={{ color: activeThemeColor }} />
-                    </div>
+                  <label className={styles.fileInputLabel} title="Send File Attachment">
+                    <Paperclip size={18} />
+                    <input type="file" onChange={handleFileSelect} className={styles.fileInput} disabled={sendingMedia} />
+                  </label>
+
+                  <div className={styles.inputWrapper}>
+                    <input
+                      ref={textInputRef}
+                      type="text"
+                      placeholder={
+                        uploading
+                          ? 'Uploading attachment...'
+                          : replyingTo
+                          ? `Replying to ${replyingTo.sender?.name || 'message'}...`
+                          : 'Type a message...'
+                      }
+                      value={inputText}
+                      onChange={(e) => handleInputChange(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      className={styles.textInput}
+                      disabled={uploading}
+                    />
+                    <button
+                      type="button"
+                      className={styles.emojiBtn}
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      title="Choose an Emoji"
+                    >
+                      <Smile size={20} />
+                    </button>
                   </div>
-                )}
+
+                  {inputText.trim() ? (
+                    <button
+                      className={styles.btnSend}
+                      onClick={handleSend}
+                      disabled={uploading}
+                      style={
+                        activeThemeGradient
+                          ? { background: activeThemeGradient }
+                          : activeThemeColor
+                          ? { background: activeThemeColor }
+                          : undefined
+                      }
+                    >
+                      <Send size={16} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.btnQuickEmoji}
+                      onClick={handleSendDefaultEmoji}
+                      title={`Send Quick Emoji (${activeDefaultEmoji})`}
+                    >
+                      {activeDefaultEmoji}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Desktop Sidebar / Mobile Overlay Chat Details */}
+              {/* WhatsApp Web Image Editor & Media Upload Preview Modal */}
+              {showMediaPreviewModal && pendingMediaItems.length > 0 && (
+                <div className={styles.mediaPreviewOverlay}>
+                  {/* Top Bar (Close, Title, Editor Toolbar Tools) */}
+                  <div className={styles.mediaPreviewHeader}>
+                    <div className={styles.mediaPreviewHeaderLeft}>
+                      <button className={styles.mediaPreviewCloseBtn} onClick={handleCancelMediaPreview} title="Cancel">
+                        <X size={22} />
+                      </button>
+                      <span className={styles.mediaPreviewTitle}>
+                        {pendingMediaItems[activeMediaIndex]?.file.type.startsWith('image/')
+                          ? `Image ${activeMediaIndex + 1} of ${pendingMediaItems.length}`
+                          : 'Document Preview'}
+                      </span>
+                    </div>
+
+                    {/* WhatsApp Web Toolbar Tools */}
+                    {pendingMediaItems[activeMediaIndex]?.file.type.startsWith('image/') && (
+                      <div className={styles.editorToolbarCenter}>
+                        {/* Crop / Rotate Tool */}
+                        <button
+                          type="button"
+                          className={styles.editorToolBtn}
+                          onClick={() => {
+                            setMediaRotations((prev) => ({
+                              ...prev,
+                              [activeMediaIndex]: ((prev[activeMediaIndex] || 0) + 90) % 360,
+                            }));
+                          }}
+                          title="Rotate Image 90°"
+                        >
+                          <RotateCw size={18} />
+                        </button>
+
+                        {/* Magic Wand Filters Tool */}
+                        <button
+                          type="button"
+                          className={showFilterPicker ? styles.editorToolBtnActive : styles.editorToolBtn}
+                          onClick={() => {
+                            setShowFilterPicker((prev) => !prev);
+                            setIsDrawMode(false);
+                          }}
+                          title="Image Filters"
+                        >
+                          <Sparkles size={18} />
+                        </button>
+
+                        {/* Freehand Pencil Draw Tool */}
+                        <button
+                          type="button"
+                          className={isDrawMode ? styles.editorToolBtnActive : styles.editorToolBtn}
+                          onClick={() => {
+                            setIsDrawMode((prev) => !prev);
+                            setShowFilterPicker(false);
+                          }}
+                          title="Freehand Pencil Draw"
+                        >
+                          <Pencil size={18} />
+                        </button>
+
+                        {/* Clear Canvas */}
+                        {isDrawMode && (
+                          <button type="button" className={styles.editorToolBtn} onClick={clearDrawing} title="Clear Drawings">
+                            <Undo2 size={18} />
+                          </button>
+                        )}
+
+                        {/* HD Quality Toggle */}
+                        <button
+                          type="button"
+                          className={qualityMode === 'hd' ? styles.hdToggleActive : styles.hdToggle}
+                          onClick={() => setQualityMode((prev) => (prev === 'standard' ? 'hd' : 'standard'))}
+                          title={
+                            qualityMode === 'hd'
+                              ? 'HD Quality (Original size, no compression)'
+                              : 'Standard Quality (Frontend compression applied)'
+                          }
+                        >
+                          <span className={styles.hdBadgeText}>HD</span>
+                          <span className={styles.hdStatusLabel}>{qualityMode === 'hd' ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Color Swatches Popover for Pencil Mode */}
+                  {isDrawMode && (
+                    <div className={styles.colorBarPopover}>
+                      {['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#ffffff', '#000000'].map((col) => (
+                        <div
+                          key={col}
+                          className={drawColor === col ? styles.colorSwatchActive : styles.colorSwatch}
+                          style={{ backgroundColor: col }}
+                          onClick={() => setDrawColor(col)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Filter Selector Cards Popover */}
+                  {showFilterPicker && (
+                    <div className={styles.filterBarPopover}>
+                      {[
+                        { id: 'none', label: 'Normal' },
+                        { id: 'grayscale', label: 'B&W' },
+                        { id: 'sepia', label: 'Vintage' },
+                        { id: 'warm', label: 'Warm' },
+                        { id: 'cool', label: 'Cool' },
+                        { id: 'invert', label: 'Invert' },
+                      ].map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          className={
+                            (mediaFilters[activeMediaIndex] || 'none') === f.id
+                              ? styles.filterCardActive
+                              : styles.filterCard
+                          }
+                          onClick={() => {
+                            setMediaFilters((prev) => ({ ...prev, [activeMediaIndex]: f.id }));
+                          }}
+                        >
+                          <span>{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Main Media Preview Canvas Area */}
+                  <div className={styles.mediaPreviewBody}>
+                    {pendingMediaItems[activeMediaIndex]?.file.type.startsWith('image/') ? (
+                      <div style={{ position: 'relative', display: 'inline-block', maxWidth: '90%', maxHeight: '65vh' }}>
+                        <img
+                          src={pendingMediaItems[activeMediaIndex]?.previewUrl}
+                          alt="Media Preview"
+                          className={styles.mediaPreviewImage}
+                          style={{
+                            transform: `rotate(${mediaRotations[activeMediaIndex] || 0}deg)`,
+                            filter:
+                              (mediaFilters[activeMediaIndex] || 'none') === 'grayscale'
+                                ? 'grayscale(100%)'
+                                : (mediaFilters[activeMediaIndex] || 'none') === 'sepia'
+                                ? 'sepia(100%)'
+                                : (mediaFilters[activeMediaIndex] || 'none') === 'warm'
+                                ? 'sepia(50%) contrast(110%) brightness(105%)'
+                                : (mediaFilters[activeMediaIndex] || 'none') === 'cool'
+                                ? 'hue-rotate(180deg) saturate(120%)'
+                                : (mediaFilters[activeMediaIndex] || 'none') === 'invert'
+                                ? 'invert(100%)'
+                                : 'none',
+                            transition: 'transform 0.25s ease, filter 0.25s ease',
+                          }}
+                        />
+                        {/* Interactive Freehand Draw Canvas */}
+                        <canvas
+                          ref={drawCanvasRef}
+                          width={640}
+                          height={480}
+                          onMouseDown={startDrawing}
+                          onMouseMove={draw}
+                          onMouseUp={stopDrawing}
+                          onTouchStart={startDrawing}
+                          onTouchMove={draw}
+                          onTouchEnd={stopDrawing}
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: '100%',
+                            height: '100%',
+                            cursor: isDrawMode ? 'crosshair' : 'default',
+                            pointerEvents: isDrawMode ? 'auto' : 'none',
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className={styles.mediaPreviewDocBox}>
+                        <Paperclip size={48} className={styles.mediaPreviewDocIcon} />
+                        <span className={styles.mediaPreviewDocName}>{pendingMediaItems[activeMediaIndex]?.file.name}</span>
+                        <span className={styles.mediaPreviewDocSize}>
+                          {(pendingMediaItems[activeMediaIndex]?.file.size / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer with Caption Input, View-Once & Multi-Image Thumbnail Tray */}
+                  <div className={styles.mediaPreviewFooterColumn}>
+                    {/* Caption Input & View-Once Row */}
+                    <div className={styles.mediaPreviewInputWrapper}>
+                      <input
+                        type="text"
+                        placeholder="Add a caption..."
+                        value={mediaCaptions[activeMediaIndex] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMediaCaptions((prev) => ({ ...prev, [activeMediaIndex]: val }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMediaWithCaption();
+                          }
+                        }}
+                        className={styles.mediaPreviewInput}
+                        autoFocus
+                      />
+
+                      {/* View-Once Toggle Button ① */}
+                      <button
+                        type="button"
+                        className={isViewOnce ? styles.viewOnceBtnActive : styles.viewOnceBtn}
+                        onClick={() => setIsViewOnce((prev) => !prev)}
+                        title={isViewOnce ? 'View Once Enabled' : 'Enable View Once'}
+                      >
+                        ①
+                      </button>
+
+                      {/* Floating Send Button */}
+                      <button
+                        className={styles.mediaPreviewSendBtn}
+                        onClick={handleSendMediaWithCaption}
+                        disabled={sendingMedia}
+                        style={activeThemeColor ? { background: activeThemeColor } : undefined}
+                        title="Send message"
+                      >
+                        {sendingMedia ? <Loader2 className={styles.spinLoader} size={18} /> : <Send size={18} />}
+                      </button>
+                    </div>
+
+                    {/* Multi-Image Thumbnail Carousel Tray */}
+                    <div className={styles.thumbnailTray}>
+                      {pendingMediaItems.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className={idx === activeMediaIndex ? styles.thumbnailItemActive : styles.thumbnailItem}
+                          onClick={() => {
+                            setActiveMediaIndex(idx);
+                            setIsDrawMode(false);
+                            setShowFilterPicker(false);
+                          }}
+                        >
+                          {item.file.type.startsWith('image/') ? (
+                            <img src={item.previewUrl} alt={`Thumb ${idx}`} className={styles.thumbnailImage} />
+                          ) : (
+                            <Paperclip size={24} style={{ margin: 'auto' }} />
+                          )}
+                          <button
+                            type="button"
+                            className={styles.thumbnailRemoveBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveThumbnail(idx);
+                            }}
+                            title="Remove media"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* Add More Media (+) Button */}
+                      <label className={styles.thumbnailAddBtn} title="Add more photos or files">
+                        <Plus size={22} />
+                        <input
+                          type="file"
+                          multiple
+                          onChange={handleFileSelect}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Right Column: Desktop Sidebar / Mobile Overlay Chat Details */}
               {showDetails && (
                 <div className={`${styles.detailsSidebar} ${styles.detailsSidebarMobile}`}>
                   <div className={styles.detailsHeader}>
@@ -1551,7 +2265,7 @@ export default function ChatPage() {
                           <span>Choose Custom Emoji</span>
                         </button>
                         {showDefaultEmojiPickerPopover && (
-                          <div className={styles.customEmojiPickerPopover} ref={defaultEmojiPickerRef} style={{ top: '-360px', left: 0 }}>
+                          <div className={styles.detailsEmojiPickerPopover} ref={defaultEmojiPickerRef}>
                             <EmojiPicker
                               onEmojiClick={(emojiData) => {
                                 updateChatSettings({ defaultEmoji: emojiData.emoji });
@@ -1559,8 +2273,8 @@ export default function ChatPage() {
                               }}
                               theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
                               searchDisabled={false}
-                              width={290}
-                              height={340}
+                              width="100%"
+                              height={320}
                             />
                           </div>
                         )}
@@ -1653,97 +2367,6 @@ export default function ChatPage() {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Feature 2: Reply Drawer Banner above Input Drawer */}
-            {replyingTo && (
-              <div className={styles.replyDrawer} style={{ borderLeftColor: activeThemeColor }}>
-                <div className={styles.replyDrawerText}>
-                  <span className={styles.replyDrawerSender} style={{ color: activeThemeColor }}>
-                    Replying to {replyingTo.sender?.name || 'Message'}
-                  </span>
-                  <span className={styles.replyDrawerContent}>
-                    {replyingTo.content || (replyingTo.fileUrl ? 'Attachment File' : '')}
-                  </span>
-                </div>
-                <button className={styles.replyDrawerClose} onClick={() => setReplyingTo(null)}>
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-
-            {/* Chat Input Panel */}
-            <div className={styles.inputPanel}>
-              {/* Full Emoji Picker Popover */}
-              {showEmojiPicker && (
-                <div className={styles.emojiPickerPopover} ref={emojiPickerRef}>
-                  <EmojiPicker
-                    onEmojiClick={handleEmojiClick}
-                    theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
-                    searchDisabled={false}
-                    width={340}
-                    height={400}
-                  />
-                </div>
-              )}
-
-              <label className={styles.fileInputLabel} title="Send File Attachment">
-                <Paperclip size={18} />
-                <input type="file" onChange={handleFileUpload} className={styles.fileInput} disabled={uploading} />
-              </label>
-
-              <div className={styles.inputWrapper}>
-                <input
-                  ref={textInputRef}
-                  type="text"
-                  placeholder={
-                    uploading
-                      ? 'Uploading attachment...'
-                      : replyingTo
-                      ? `Replying to ${replyingTo.sender?.name || 'message'}...`
-                      : 'Type a message...'
-                  }
-                  value={inputText}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  className={styles.textInput}
-                  disabled={uploading}
-                />
-                <button
-                  type="button"
-                  className={styles.emojiBtn}
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  title="Choose an Emoji"
-                >
-                  <Smile size={20} />
-                </button>
-              </div>
-
-              {inputText.trim() ? (
-                <button
-                  className={styles.btnSend}
-                  onClick={handleSend}
-                  disabled={uploading}
-                  style={
-                    activeThemeGradient
-                      ? { background: activeThemeGradient }
-                      : activeThemeColor
-                      ? { background: activeThemeColor }
-                      : undefined
-                  }
-                >
-                  <Send size={16} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.btnQuickEmoji}
-                  onClick={handleSendDefaultEmoji}
-                  title={`Send Quick Emoji (${activeDefaultEmoji})`}
-                >
-                  {activeDefaultEmoji}
-                </button>
               )}
             </div>
           </>

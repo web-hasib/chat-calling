@@ -150,6 +150,25 @@
   flex-direction: column;
   background-color: var(--bg-primary);
   transition: all var(--transition-normal);
+  overflow: hidden;
+}
+
+.chatBodyRow {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.chatMainColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  position: relative;
 }
 
 .placeholder {
@@ -284,11 +303,46 @@
   align-self: flex-start;
 }
 
+.msgContentHasMedia {
+  padding: 4px;
+  border-radius: var(--radius-md);
+  max-width: 300px;
+  overflow: hidden;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.msgSent .msgContentHasMedia {
+  background-color: var(--accent-primary);
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+
+.msgReceived .msgContentHasMedia {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-bottom-left-radius: 2px;
+}
+
 .attachmentImage {
-  max-width: 100%;
-  max-height: 240px;
+  width: 100%;
+  max-width: 292px;
+  max-height: 320px;
+  object-fit: cover;
   border-radius: var(--radius-sm);
-  margin-bottom: 4px;
+  display: block;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.attachmentImage:hover {
+  opacity: 0.92;
+}
+
+.imageCaptionText {
+  padding: 8px 10px 4px 10px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 /* Message Input Drawer */
@@ -1196,6 +1250,61 @@
   right: auto;
 }
 
+.detailsEmojiPickerPopover {
+  position: absolute;
+  bottom: 42px;
+  right: 0;
+  left: 0;
+  width: 100%;
+  max-width: 100%;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.detailsEmojiPickerPopover :global(.EmojiPickerReact) {
+  --epr-emoji-size: 22px !important;
+  --epr-header-padding: 6px !important;
+  --epr-category-navigation-button-size: 22px !important;
+  --epr-category-label-height: 24px !important;
+  --epr-picker-border-color: transparent !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-family: inherit !important;
+}
+
+.detailsEmojiPickerPopover :global(.epr-category-label) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 4px 8px !important;
+}
+
+.detailsEmojiPickerPopover :global(.epr-category-nav) {
+  padding: 4px 6px !important;
+  gap: 2px !important;
+}
+
+.detailsEmojiPickerPopover :global(.epr-search-container) {
+  padding: 6px 8px !important;
+}
+
+.detailsEmojiPickerPopover :global(.epr-search-container input) {
+  font-size: 12px !important;
+  height: 30px !important;
+}
+
+.detailsEmojiPickerPopover :global(.epr-preview) {
+  height: 40px !important;
+  padding: 4px 8px !important;
+}
+
+.detailsEmojiPickerPopover :global(.epr-preview-title) {
+  font-size: 12px !important;
+}
+
 /* Reaction Badges: Borderless pill buttons */
 .reactionPills {
   display: flex;
@@ -1404,4 +1513,506 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Skeleton Loader for Thread Switching */
+.skeletonContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0;
+  width: 100%;
+}
+
+.skeletonBubble {
+  border-radius: var(--radius-lg);
+  background: var(--bg-tertiary);
+  position: relative;
+  overflow: hidden;
+  opacity: 0.55;
+}
+
+.skeletonBubble::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite ease-in-out;
+}
+
+.skeletonReceived {
+  align-self: flex-start;
+  border-bottom-left-radius: var(--radius-xs);
+}
+
+.skeletonSent {
+  align-self: flex-end;
+  border-bottom-right-radius: var(--radius-xs);
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Subtle fade in for prepended pagination messages */
+.msgPrependFadeIn {
+  animation: fadeInMessage 0.35s ease-out forwards;
+}
+
+@keyframes fadeInMessage {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* WhatsApp-style Media Upload Preview Modal with Holo Background */
+.mediaPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.22), transparent 65%),
+              radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.18), transparent 65%),
+              radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.12), transparent 75%),
+              rgba(8, 9, 16, 0.92);
+  backdrop-filter: blur(28px) saturate(190%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.mediaPreviewHeader {
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mediaPreviewHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mediaPreviewCloseBtn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-fast);
+}
+
+.mediaPreviewCloseBtn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.mediaPreviewTitle {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* HD / Standard Quality Toggle Switch */
+.hdToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.hdToggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.hdToggleActive {
+  composes: hdToggle;
+  background: rgba(99, 102, 241, 0.28);
+  border-color: rgba(129, 140, 248, 0.6);
+  color: #a5b4fc;
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.45);
+}
+
+.hdBadgeText {
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1.5px solid currentColor;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.hdStatusLabel {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mediaPreviewBody {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.mediaPreviewImage {
+  max-width: 90%;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.mediaPreviewDocBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 48px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.mediaPreviewDocIcon {
+  color: var(--accent-primary);
+}
+
+.mediaPreviewDocName {
+  font-size: 16px;
+  font-weight: 500;
+  max-width: 280px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.mediaPreviewDocSize {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.mediaPreviewFooter {
+  padding: 20px 24px 32px 24px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.mediaPreviewInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 640px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+  padding: 6px 8px 6px 20px;
+  backdrop-filter: blur(8px);
+}
+
+.mediaPreviewInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.mediaPreviewInput::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.mediaPreviewSendBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.mediaPreviewSendBtn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.mediaPreviewSendBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* WhatsApp Web Top Editor Toolbar */
+.editorToolbarCenter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+  padding: 4px 8px;
+  backdrop-filter: blur(12px);
+}
+
+.editorToolBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+}
+
+.editorToolBtn:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.editorToolBtnActive {
+  composes: editorToolBtn;
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 0 12px var(--accent-primary);
+}
+
+/* Color Swatches Bar for Pencil Drawing Mode */
+.colorBarPopover {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(18, 18, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  z-index: 1010;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.colorSwatch {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.colorSwatch:hover {
+  transform: scale(1.2);
+}
+
+.colorSwatchActive {
+  composes: colorSwatch;
+  border-color: #ffffff;
+  transform: scale(1.25);
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Filter Selector Row Popover */
+.filterBarPopover {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(18, 18, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  padding: 10px 16px;
+  z-index: 1010;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.filterCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filterCard:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.filterCardActive {
+  composes: filterCard;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+/* View Once Toggle Button */
+.viewOnceBtn {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.7);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.viewOnceBtn:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.viewOnceBtnActive {
+  composes: viewOnceBtn;
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 0 10px var(--accent-primary);
+}
+
+/* Multi-Image Thumbnail Tray Footer */
+.mediaPreviewFooterColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px 24px 24px;
+  width: 100%;
+}
+
+.thumbnailTray {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  max-width: 90vw;
+  padding: 4px 8px;
+}
+
+.thumbnailItem {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.thumbnailItem:hover {
+  transform: scale(1.05);
+}
+
+.thumbnailItemActive {
+  composes: thumbnailItem;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
+}
+
+.thumbnailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnailRemoveBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-full);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.thumbnailAddBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.thumbnailAddBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #ffffff;
 }
