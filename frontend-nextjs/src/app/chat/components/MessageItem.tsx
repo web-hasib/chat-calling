@@ -7,7 +7,6 @@ import {
 import {
   Smile, Reply, Trash2, X, ExternalLink, Check, CheckCheck, Loader2, Plus,
 } from 'lucide-react';
-import styles from '../chat.module.css';
 
 interface MessageItemProps {
   msg: any;
@@ -46,25 +45,21 @@ export function MessageItem({
   return (
     <div
       id={`msg-${msg.id}`}
-      className={`${isSentByMe ? styles.msgSentWrapper : styles.msgReceivedWrapper} ${isPrepended ? styles.msgPrependFadeIn : ''}`}
+      className={`group relative flex flex-col max-w-[75%] min-w-[60px] w-fit mb-1 ${isSentByMe ? 'self-end items-end' : 'self-start items-start'} ${isPrepended ? 'animate-in fade-in-0 duration-350 slide-in-from-top-1.5' : ''}`}
     >
       {/* Hover Action Bar */}
       <div
-        className={
-          deleteConfirmMsgId === msg.id
-            ? `${styles.msgActionsHover} ${styles.msgActionsHoverActive}`
-            : styles.msgActionsHover
-        }
+        className={`absolute -top-3.5 z-10 hidden group-hover:flex items-center gap-0.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-md p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity ${deleteConfirmMsgId === msg.id ? 'flex opacity-100' : ''} ${isSentByMe ? 'right-0' : 'left-0'}`}
       >
         <button
-          className={styles.actionIconBtn}
+          className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
           onClick={() => onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id)}
           title="React with Emoji"
         >
           <Smile size={14} />
         </button>
         <button
-          className={styles.actionIconBtn}
+          className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
           onClick={() => onReply(msg)}
           title="Reply to Message"
         >
@@ -78,7 +73,7 @@ export function MessageItem({
             >
               <TooltipTrigger asChild>
                 <button
-                  className={styles.actionIconBtnDanger}
+                  className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:bg-red-500/10 hover:text-red-400 transition-colors"
                   onClick={() => onDeleteToggle(deleteConfirmMsgId === msg.id ? null : msg.id)}
                   title="Delete Message"
                 >
@@ -86,10 +81,10 @@ export function MessageItem({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" sideOffset={8}>
-                <span className={styles.deleteTooltipText}>Delete for everyone?</span>
+                <span className="text-xs font-semibold mr-2">Delete for everyone?</span>
                 <button
                   type="button"
-                  className={styles.deleteTooltipConfirmBtn}
+                  className="bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1"
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     onConfirmDelete(msg.id);
@@ -103,7 +98,7 @@ export function MessageItem({
                 </button>
                 <button
                   type="button"
-                  className={styles.deleteTooltipCancelBtn}
+                  className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 hover:text-[var(--text-primary)] transition-colors"
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     onDeleteToggle(null);
@@ -124,18 +119,18 @@ export function MessageItem({
 
       {/* Emoji Reaction Picker Bar */}
       {activeReactionPickerId === msg.id && (
-        <div className={styles.reactionPicker} ref={reactionPickerRef}>
+        <div className={`absolute -top-11 z-20 flex gap-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-md p-1 shadow-md ${isSentByMe ? 'right-0' : 'left-0'}`} ref={reactionPickerRef}>
           {['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) => (
             <button
               key={emoji}
-              className={styles.reactionOption}
+              className="bg-transparent border-none text-base cursor-pointer px-1 rounded-sm hover:bg-[var(--bg-tertiary)] transition-colors"
               onClick={() => onToggleReaction(msg.id, emoji)}
             >
               {emoji}
             </button>
           ))}
           <button
-            className={styles.reactionOptionPlus}
+            className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-all"
             onClick={() => {
               onReactionPickerToggle(null);
               onCustomEmojiMsgToggle(msg.id);
@@ -149,7 +144,7 @@ export function MessageItem({
 
       {/* Custom Any Emoji Picker Popover */}
       {activeCustomEmojiMsgId === msg.id && (
-        <div className={styles.customEmojiPickerPopover} ref={customReactionPickerRef}>
+        <div className={`absolute -top-[390px] z-50 shadow-lg rounded-lg overflow-hidden ${isSentByMe ? 'right-0' : 'left-0'}`} ref={customReactionPickerRef}>
           <EmojiPicker
             onEmojiClick={(emojiData) => onToggleReaction(msg.id, emojiData.emoji)}
             theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
@@ -161,19 +156,19 @@ export function MessageItem({
       )}
 
       {/* Message Bubble Box */}
-      <div className={isSentByMe ? styles.msgSent : styles.msgReceived}>
+      <div className={`max-w-full w-fit flex flex-col relative`}>
         {/* Quoted Reply Box inside Message */}
         {msg.replyTo && (
           <div 
-            className={styles.quotedReplyBox}
+            className={`bg-black/15 border-l-3 border-[var(--accent-primary)] rounded-sm p-1.5 mb-1.5 text-xs ${!isSentByMe ? 'bg-[var(--bg-tertiary)]' : ''}`}
             onClick={() => onScrollToMessage(msg.replyTo.id)}
             style={{ cursor: 'pointer' }}
             title="Click to view original message"
           >
-            <div className={styles.quotedSender}>
+            <div className="font-semibold text-[var(--accent-primary)] mb-0.5">
               Replying to {msg.replyTo.sender?.name || 'Message'}
             </div>
-            <div className={styles.quotedContent}>
+            <div className="text-[var(--text-secondary)] truncate">
               {msg.replyTo.content || (msg.replyTo.fileUrl ? 'Attachment File' : '')}
             </div>
           </div>
@@ -182,7 +177,7 @@ export function MessageItem({
         {msg.fileUrl ? (
           (msg.fileType?.split(',')[0] === 'IMAGE') ? (
             <div
-              className={styles.msgContentHasMedia}
+              className={`p-1 rounded-[16px] max-w-[300px] overflow-hidden break-words whitespace-pre-wrap ${isSentByMe ? 'bg-[var(--accent-primary)] text-white rounded-br-[4px]' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-[4px]'}`}
               style={
                 isSentByMe
                   ? activeThemeGradient
@@ -199,22 +194,23 @@ export function MessageItem({
                   const displayUrls = urls.slice(0, 4);
                   const extraCount = urls.length - 3;
                   return (
-                    <div className={`${styles.imageGrid} ${styles[`grid-${Math.min(urls.length, 4)}`]}`}>
+                    <div className={`grid gap-1 max-w-[320px] w-full rounded-sm overflow-hidden mb-1 ${urls.length >= 4 ? 'grid-cols-2 grid-rows-2' : urls.length === 3 ? 'grid-cols-2' : 'grid-cols-2'}`}>
                       {displayUrls.map((url: string, i: number) => {
                         const isLast = i === 3 && urls.length > 4;
+                        const isFirstOfThree = i === 0 && urls.length === 3;
                         return (
                           <div
                             key={i}
-                            className={styles.gridImageWrapper}
+                            className={`relative cursor-pointer overflow-hidden ${isFirstOfThree ? 'col-span-2 aspect-[1.8]' : 'aspect-square'}`}
                             onClick={() => onOpenLightbox(urls, i)}
                           >
                             <img
                               src={url.trim()}
                               alt="Attachment"
-                              className={styles.gridImage}
+                              className="w-full h-full object-cover hover:scale-[1.04] transition-transform duration-200"
                             />
                             {isLast && (
-                              <div className={styles.gridImageOverlay}>
+                              <div className="absolute inset-0 bg-black/55 flex items-center justify-center color-white text-xl font-bold backdrop-blur-[2px]">
                                 <span>+{extraCount}</span>
                               </div>
                             )}
@@ -228,16 +224,16 @@ export function MessageItem({
                   <img
                     src={msg.fileUrl}
                     alt="Attachment"
-                    className={styles.attachmentImage}
+                    className="w-full max-w-[292px] max-h-[320px] object-cover rounded-sm block cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => onOpenLightbox(urls, 0)}
                   />
                 );
               })()}
-              {msg.content && <div className={styles.imageCaptionText}>{msg.content}</div>}
+              {msg.content && <div className="px-2 py-1 text-sm leading-normal">{msg.content}</div>}
             </div>
           ) : (
             <div
-              className={styles.msgContent}
+              className={`px-4 py-3 rounded-[16px] text-sm leading-normal break-words overflow-wrap-anywhere whitespace-pre-wrap ${isSentByMe ? 'bg-[var(--accent-primary)] text-white rounded-br-[4px]' : 'bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-[4px]'}`}
               style={
                 isSentByMe
                   ? activeThemeGradient
@@ -283,7 +279,7 @@ export function MessageItem({
           )
         ) : (
           <div
-            className={styles.msgContent}
+            className={`px-4 py-3 rounded-[16px] text-sm leading-normal break-words overflow-wrap-anywhere whitespace-pre-wrap relative ${isSentByMe ? 'bg-[var(--accent-primary)] text-white rounded-br-[4px]' : 'bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-[4px]'}`}
             style={
               isSentByMe
                 ? activeThemeGradient
@@ -295,6 +291,18 @@ export function MessageItem({
             }
           >
             {msg.content}
+            {/* Lej / Tail using Clip Path */}
+            {isSentByMe ? (
+              <div 
+                className="absolute bottom-0 -right-2 w-3.5 h-[18px] bg-inherit" 
+                style={{ clipPath: 'polygon(0 0, 0 100%, 100% 100%, 0 0)' }}
+              />
+            ) : (
+              <div 
+                className="absolute bottom-[-1px] -left-2 w-3.5 h-[18px] bg-inherit border-l border-b border-[var(--border-color)]" 
+                style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%, 100% 0)' }}
+              />
+            )}
           </div>
         )}
 
@@ -304,26 +312,26 @@ export function MessageItem({
             href={msg.linkPreview.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={styles.linkCard}
+            className="mt-2 rounded-md overflow-hidden bg-black/20 border border-[var(--border-color)] flex flex-col text-inherit no-underline"
           >
             {msg.linkPreview.image && (
               <img
                 src={msg.linkPreview.image}
                 alt={msg.linkPreview.title || 'Link preview'}
-                className={styles.linkImage}
+                className="w-full max-h-40 object-cover"
               />
             )}
-            <div className={styles.linkMeta}>
+            <div className="p-3 flex flex-col gap-1">
               {msg.linkPreview.siteName && (
-                <div className={styles.linkSiteName}>
+                <div className="text-[11px] font-semibold text-[var(--accent-primary)]">
                   {msg.linkPreview.siteName} <ExternalLink size={10} style={{ display: 'inline', marginLeft: 2 }} />
                 </div>
               )}
               {msg.linkPreview.title && (
-                <div className={styles.linkTitle}>{msg.linkPreview.title}</div>
+                <div className="text-sm font-semibold leading-normal text-[var(--text-primary)] line-clamp-2">{msg.linkPreview.title}</div>
               )}
               {msg.linkPreview.description && (
-                <div className={styles.linkDescription}>{msg.linkPreview.description}</div>
+                <div className="text-[11px] text-[var(--text-secondary)] leading-normal line-clamp-2">{msg.linkPreview.description}</div>
               )}
             </div>
           </a>
@@ -332,11 +340,11 @@ export function MessageItem({
 
       {/* Reaction Badges Pill Row */}
       {(groupedReactions.length > 0 || reactionUpdatingMsgId === msg.id) && (
-        <div className={styles.reactionPills}>
+        <div className="flex flex-wrap gap-1 mt-1">
           {groupedReactions.map((r) => (
             <button
               key={r.emoji}
-              className={r.userReacted ? styles.reactionBadgeActive : styles.reactionBadge}
+              className={`inline-flex items-center gap-1 text-xs border border-transparent rounded-full px-2 py-0.5 cursor-pointer text-[var(--text-primary)] transition-colors ${r.userReacted ? 'bg-blue-500/15 text-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)]'}`}
               onClick={() => onToggleReaction(msg.id, r.emoji)}
               disabled={reactionUpdatingMsgId === msg.id}
               style={r.userReacted ? { borderColor: activeThemeColor } : undefined}
@@ -346,22 +354,22 @@ export function MessageItem({
             </button>
           ))}
           {reactionUpdatingMsgId === msg.id && (
-            <div className={styles.reactionLoadingSpinner}>
-              <Loader2 size={13} className={styles.spinLoader} />
+            <div className="flex items-center shrink-0">
+              <Loader2 size={13} className="animate-spin inline-block" />
             </div>
           )}
         </div>
       )}
 
       {/* Timestamp & Read Status Receipts */}
-      <div className={styles.msgInfo}>
+      <div className={`text-[10px] text-[var(--text-muted)] mt-1 ${isSentByMe ? 'self-end' : 'self-start'}`}>
         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         {isSentByMe && (
-          <span className={styles.readReceipt}>
+          <span className="inline-flex items-center ml-1 text-[var(--text-muted)]">
             {msg.id.startsWith('pending') ? (
               <Check size={12} />
             ) : msg.isRead ? (
-              <CheckCheck size={13} className={styles.tickBlue} style={{ color: activeThemeColor }} />
+              <CheckCheck size={13} style={{ color: activeThemeColor }} />
             ) : (
               <CheckCheck size={13} />
             )}

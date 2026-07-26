@@ -21,8 +21,6 @@ import { ChatDetails } from './components/ChatDetails';
 import { EditProfileModal } from './components/EditProfileModal';
 import { Lightbox } from './components/Lightbox';
 
-import styles from './chat.module.css';
-
 export default function ChatPage() {
   const { user, token, logout, loading, updateProfile } = useAuth();
   const { socket, onlineUsers } = useSocket();
@@ -300,42 +298,42 @@ export default function ChatPage() {
   // ── Loading skeleton ──
   if (loading || !user) {
     return (
-      <div className={styles.skeletonContainer}>
-        <div className={styles.skeletonSidebar}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div className={styles.skeletonPulse} style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
-            <div className={styles.skeletonPulse} style={{ width: '80px', height: '24px' }} />
+      <div className="flex h-screen w-screen bg-[var(--bg-primary)] overflow-hidden">
+        <div className="w-[320px] border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-5 gap-5">
+          <div className="flex justify-between">
+            <div className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+            <div className="w-20 h-6 bg-[var(--bg-tertiary)] rounded animate-pulse" />
           </div>
-          <div className={styles.skeletonPulse} style={{ width: '100%', height: '36px', borderRadius: '18px' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+          <div className="w-full h-9 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+          <div className="flex flex-col gap-4 mt-2.5">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className={styles.skeletonListItem}>
-                <div className={styles.skeletonPulse} style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0 }} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div className={styles.skeletonPulse} style={{ width: '40%', height: '12px' }} />
-                  <div className={styles.skeletonPulse} style={{ width: '70%', height: '10px' }} />
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[var(--bg-tertiary)] shrink-0 animate-pulse" />
+                <div className="flex-grow flex flex-col gap-1.5">
+                  <div className="w-[40%] h-3 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                  <div className="w-[70%] h-2.5 bg-[var(--bg-tertiary)] rounded animate-pulse" />
                 </div>
               </div>
             ))}
           </div>
         </div>
-        <div className={styles.skeletonChat}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <div className={styles.skeletonPulse} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
-              <div className={styles.skeletonPulse} style={{ width: '100px', height: '14px' }} />
+        <div className="flex-1 flex flex-col bg-[var(--bg-primary)] p-6 gap-6">
+          <div className="flex justify-between pb-4 border-b border-[var(--border-color)]">
+            <div className="flex gap-3 items-center">
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+              <div className="w-[100px] h-3.5 bg-[var(--bg-tertiary)] rounded animate-pulse" />
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div className={styles.skeletonPulse} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
-              <div className={styles.skeletonPulse} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+            <div className="flex gap-2">
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
             </div>
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', justifyContent: 'flex-end' }}>
-            <div className={styles.skeletonPulse} style={{ width: '200px', height: '40px', borderRadius: '12px', alignSelf: 'flex-start' }} />
-            <div className={styles.skeletonPulse} style={{ width: '140px', height: '40px', borderRadius: '12px', alignSelf: 'flex-end' }} />
-            <div className={styles.skeletonPulse} style={{ width: '260px', height: '40px', borderRadius: '12px', alignSelf: 'flex-start' }} />
+          <div className="flex-1 flex flex-col gap-5 justify-end">
+            <div className="w-[200px] h-10 rounded-xl bg-[var(--bg-tertiary)] self-start animate-pulse" />
+            <div className="w-[140px] h-10 rounded-xl bg-[var(--bg-tertiary)] self-end animate-pulse" />
+            <div className="w-[260px] h-10 rounded-xl bg-[var(--bg-tertiary)] self-start animate-pulse" />
           </div>
-          <div className={styles.skeletonPulse} style={{ width: '100%', height: '44px', borderRadius: '22px' }} />
+          <div className="w-full h-11 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
         </div>
       </div>
     );
@@ -343,37 +341,39 @@ export default function ChatPage() {
 
   // ── Render ──
   return (
-    <div className={`${styles.container} ${viewMode === 'sidebar' ? styles.viewSidebar : styles.viewChat} ${sidebarCollapsed ? styles.collapsedSidebar : ''}`}>
+    <div className="flex h-screen w-screen bg-[var(--bg-primary)] overflow-hidden">
 
       {/* ── Sidebar ── */}
-      <Sidebar
-        user={user}
-        sidebarCollapsed={sidebarCollapsed}
-        setSidebarCollapsed={setSidebarCollapsed}
-        showUserList={showUserList}
-        setShowUserList={setShowUserList}
-        setSearchQuery={setSearchQuery}
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        openEditProfile={openEditProfile}
-        logout={logout}
-        searchQuery={searchQuery}
-        users={users}
-        conversations={conversations}
-        conversationsLoading={conversationsLoading}
-        activeConvo={activeConvo}
-        onlineUsers={onlineUsers}
-        startChatWithUser={handleStartChatWithUser}
-        selectConvo={handleSelectConvo}
-        getRecipientInfo={getRecipientInfo}
-        getRecipientDisplayName={getRecipientDisplayName}
-        currentUserId={user.id}
-      />
+      <div className={`${viewMode === 'sidebar' ? 'w-full' : 'hidden'} md:w-auto md:block shrink-0`}>
+        <Sidebar
+          user={user}
+          sidebarCollapsed={sidebarCollapsed}
+          setSidebarCollapsed={setSidebarCollapsed}
+          showUserList={showUserList}
+          setShowUserList={setShowUserList}
+          setSearchQuery={setSearchQuery}
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          openEditProfile={openEditProfile}
+          logout={logout}
+          searchQuery={searchQuery}
+          users={users}
+          conversations={conversations}
+          conversationsLoading={conversationsLoading}
+          activeConvo={activeConvo}
+          onlineUsers={onlineUsers}
+          startChatWithUser={handleStartChatWithUser}
+          selectConvo={handleSelectConvo}
+          getRecipientInfo={getRecipientInfo}
+          getRecipientDisplayName={getRecipientDisplayName}
+          currentUserId={user.id}
+        />
+      </div>
 
       {/* ── Main Chat Window ── */}
-      <div className={styles.chatWindow}>
+      <div className={`flex-grow flex flex-col bg-[var(--bg-primary)] overflow-hidden ${viewMode === 'chat' ? 'flex' : 'hidden'} md:flex`}>
         {activeConvo ? (
           <>
             {/* Header */}
@@ -391,9 +391,9 @@ export default function ChatPage() {
             />
 
             {/* Body Row */}
-            <div className={styles.chatBodyRow}>
+            <div className="flex-grow flex flex-row min-h-0 relative overflow-hidden">
               {/* Left Column: Messages + Input */}
-              <div className={styles.chatMainColumn}>
+              <div className="flex-1 flex flex-col min-w-0 h-full relative">
                 <MessageList
                   messages={messages}
                   hasMore={hasMore}
@@ -423,7 +423,7 @@ export default function ChatPage() {
                   onToggleReaction={handleToggleReaction}
                   onDeleteToggle={setDeleteConfirmMsgId}
                   onConfirmDelete={confirmDeleteMessage}
-                  onScrollToMessage={(id) => scrollToMessage(id, styles.highlightMessage)}
+                  onScrollToMessage={(id) => scrollToMessage(id, 'animate-pulse rounded-lg shadow-sm duration-1000 bg-white/15')}
                   onOpenLightbox={(urls, i) => { setLightboxImages(urls); setLightboxIndex(i); }}
                 />
 
@@ -518,7 +518,7 @@ export default function ChatPage() {
             </div>
           </>
         ) : (
-          <div className={styles.placeholder}>
+          <div className="hidden md:flex flex-grow flex flex-col items-center justify-center text-[var(--text-secondary)] gap-3 text-center p-6">
             <MessageSquare size={48} strokeWidth={1} />
             <p>Select or start a conversation to begin messaging</p>
           </div>
