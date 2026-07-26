@@ -40,6 +40,134 @@ const iceConfig = {
   ],
 };
 
+class CallAudioSynthesizer {
+  private audioCtx: AudioContext | null = null;
+  private intervalId: any = null;
+  private oscs: OscillatorNode[] = [];
+  private gainNode: GainNode | null = null;
+
+  startRingingOutgoing() {
+    this.stop();
+    const AudioContextClass = typeof window !== 'undefined' ? (window.AudioContext || (window as any).webkitAudioContext) : null;
+    if (!AudioContextClass) return;
+    this.audioCtx = new AudioContextClass();
+    
+    const playRingCycle = () => {
+      if (!this.audioCtx) return;
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume();
+      }
+      
+      const osc1 = this.audioCtx.createOscillator();
+      const osc2 = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      
+      osc1.frequency.value = 440;
+      osc2.frequency.value = 480;
+      
+      gain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.06, this.audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.06, this.audioCtx.currentTime + 1.9);
+      gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 2.0);
+      
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      
+      osc1.start();
+      osc2.start();
+      
+      this.oscs = [osc1, osc2];
+      this.gainNode = gain;
+      
+      setTimeout(() => {
+        try {
+          osc1.stop();
+          osc2.stop();
+        } catch(e) {}
+      }, 2000);
+    };
+    
+    playRingCycle();
+    this.intervalId = setInterval(playRingCycle, 6000);
+  }
+
+  startRingtoneIncoming() {
+    this.stop();
+    const AudioContextClass = typeof window !== 'undefined' ? (window.AudioContext || (window as any).webkitAudioContext) : null;
+    if (!AudioContextClass) return;
+    this.audioCtx = new AudioContextClass();
+
+    const playRingtoneCycle = () => {
+      if (!this.audioCtx) return;
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume();
+      }
+
+      const now = this.audioCtx.currentTime;
+      const gain = this.audioCtx.createGain();
+      gain.connect(this.audioCtx.destination);
+      this.gainNode = gain;
+
+      const playBeep = (freq: number, startOffset: number, duration: number) => {
+        if (!this.audioCtx || !gain) return;
+        const osc = this.audioCtx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + startOffset);
+        
+        gain.gain.setValueAtTime(0, now + startOffset);
+        gain.gain.linearRampToValueAtTime(0.08, now + startOffset + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration - 0.05);
+        
+        osc.connect(gain);
+        osc.start(now + startOffset);
+        osc.stop(now + startOffset + duration);
+        this.oscs.push(osc);
+      };
+
+      playBeep(853, 0.0, 0.4);
+      playBeep(960, 0.0, 0.4);
+      
+      playBeep(853, 0.5, 0.4);
+      playBeep(960, 0.5, 0.4);
+
+      playBeep(853, 1.2, 0.4);
+      playBeep(960, 1.2, 0.4);
+
+      playBeep(853, 1.7, 0.4);
+      playBeep(960, 1.7, 0.4);
+    };
+
+    playRingtoneCycle();
+    this.intervalId = setInterval(playRingtoneCycle, 3500);
+  }
+
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.oscs.forEach(osc => {
+      try {
+        osc.stop();
+      } catch (e) {}
+    });
+    this.oscs = [];
+    if (this.gainNode) {
+      try {
+        this.gainNode.disconnect();
+      } catch(e) {}
+      this.gainNode = null;
+    }
+    if (this.audioCtx) {
+      try {
+        this.audioCtx.close();
+      } catch(e) {}
+      this.audioCtx = null;
+    }
+  }
+}
+
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { socket } = useSocket();
   const { user } = useAuth();
@@ -56,26 +184,38 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const incomingOfferRef = useRef<any>(null);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
+  const audioSynthRef = useRef<CallAudioSynthesizer | null>(null);
+
+  // Initialize synthesizer
+  useEffect(() => {
+    audioSynthRef.current = new CallAudioSynthesizer();
+    return () => {
+      audioSynthRef.current?.stop();
+    };
+  }, []);
 
   // Set up socket signaling listeners
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('incoming-call', (data: { from: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string }) => {
+    socket.on('incoming-call', (data: { from: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string; callerName?: string; callerAvatar?: string }) => {
       setActiveCall({
         role: 'receiver',
         type: data.type,
         peerId: data.from,
-        peerName: 'Incoming Caller',
+        peerName: data.callerName || 'Incoming Caller',
+        peerAvatar: data.callerAvatar,
         conversationId: data.conversationId,
         status: 'ringing',
       });
       incomingOfferRef.current = data.offer;
+      audioSynthRef.current?.startRingtoneIncoming();
     });
 
     socket.on('call-accepted', async (data: { answer: any }) => {
       if (peerConnectionRef.current) {
         try {
+          audioSynthRef.current?.stop();
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
           setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
           startCallTimer();
@@ -208,6 +348,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         conversationId,
         status: 'ringing',
       });
+      audioSynthRef.current?.startRingingOutgoing();
 
       const stream = await initMedia(type);
       const pc = setupPeerConnection(stream, targetUserId);
@@ -221,6 +362,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           offer,
           type,
           conversationId,
+          callerName: user?.name,
+          callerAvatar: user?.avatarUrl,
         });
       }
     } catch (e) {
@@ -232,6 +375,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!activeCall || !incomingOfferRef.current || !socket) return;
 
     try {
+      audioSynthRef.current?.stop();
       setActiveCall(prev => prev ? { ...prev, status: 'connecting' } : null);
       
       const stream = await initMedia(activeCall.type);
@@ -337,6 +481,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const cleanupCall = () => {
+    audioSynthRef.current?.stop();
     stopCallTimer();
     if (screenTrackRef.current) {
       screenTrackRef.current.stop();

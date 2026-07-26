@@ -182,7 +182,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('call-user')
   handleCallUser(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { to: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string }
+    @MessageBody() data: { to: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string; callerName?: string; callerAvatar?: string }
   ) {
     const fromUserId = client.data.userId;
     const receiverSocketId = this.activeUsers.get(data.to);
@@ -193,6 +193,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         offer: data.offer,
         type: data.type,
         conversationId: data.conversationId,
+        callerName: data.callerName,
+        callerAvatar: data.callerAvatar,
       });
     } else {
       client.emit('call-failed', { reason: 'User offline' });
