@@ -44,7 +44,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.userId = userId;
       this.activeUsers.set(userId, client.id);
 
-      // Broadcast user online status
+      // Send list of currently online user IDs to the newly connected client
+      client.emit('online-users-list', Array.from(this.activeUsers.keys()));
+
+      // Broadcast user online status to all connected clients
       this.server.emit('user-status', { userId, status: 'online' });
     } catch (e) {
       client.disconnect();

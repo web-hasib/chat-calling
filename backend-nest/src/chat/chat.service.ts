@@ -9,7 +9,7 @@ async function fetchLinkPreview(content?: string) {
   const targetUrl = match[0];
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2500);
+    const timeout = setTimeout(() => controller.abort(), 500);
     const res = await fetch(targetUrl, {
       signal: controller.signal,
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
