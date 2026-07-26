@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { ChevronLeft, ChevronRight, MessageSquare, Users, Settings, Sun, Moon, LogOut } from 'lucide-react';
-import styles from '../chat.module.css';
 
 interface SidebarProps {
   user: any;
@@ -40,32 +39,32 @@ export function Sidebar({
   currentUserId,
 }: SidebarProps) {
   return (
-    <div className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
-      <div className={styles.sidebarHeader}>
-        <div className={styles.userProfile}>
-          <img src={user.avatarUrl} alt={user.name} className={styles.avatar} />
-          <div>
-            <h2 className={styles.sidebarTitle}>Chats</h2>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>@{user.username || 'user'}</div>
+    <div className={`flex flex-col h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)] transition-all duration-200 shrink-0 w-full md:w-auto ${sidebarCollapsed ? 'md:w-[76px]' : 'md:w-[320px]'}`}>
+      <div className={`flex items-center justify-between border-b border-[var(--border-color)] ${sidebarCollapsed ? 'p-4 flex-col gap-4' : 'px-5 py-6'}`}>
+        <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'flex-col text-center' : ''}`}>
+          <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+          <div className={sidebarCollapsed ? 'hidden' : ''}>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Chats</h2>
+            <div className="text-[11px] text-[var(--text-secondary)]">@{user.username || 'user'}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
+        <div className="flex gap-2 items-center relative" style={{ flexDirection: sidebarCollapsed ? 'column' : 'row' }}>
           <button
-            className={styles.collapseBtn}
+            className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
           <button
-            className={styles.actionBtn}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
             onClick={() => { setShowUserList(!showUserList); setSearchQuery(''); }}
             title={showUserList ? 'Show Conversations' : 'Start New Conversation'}
           >
             {showUserList ? <MessageSquare size={18} /> : <Users size={18} />}
           </button>
           <button
-            className={styles.actionBtn}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
             onClick={() => setShowSettings(!showSettings)}
             title="Settings & Theme"
           >
@@ -74,29 +73,28 @@ export function Sidebar({
 
           {showSettings && (
             <>
-              <div className={styles.settingsOverlay} onClick={() => setShowSettings(false)} />
-              <div className={styles.settingsDropdown}>
-                <div className={styles.settingsSection}>
-                  <span className={styles.settingsLabel}>App Theme</span>
-                  <div className={styles.themeSwitch}>
-                    <button className={theme === 'light' ? styles.themeBtnActive : styles.themeBtn} onClick={() => toggleTheme('light')}>
+              <div className="fixed inset-0 z-[140] bg-black/50 md:bg-transparent" onClick={() => setShowSettings(false)} />
+              <div className={`absolute z-[150] w-[240px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-5 flex flex-col gap-5 shadow-lg ${sidebarCollapsed ? 'left-[50px] top-[40px]' : 'right-0 top-11'}`}>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold text-[var(--text-secondary)]">App Theme</span>
+                  <div className="flex bg-[var(--bg-tertiary)] rounded-md p-[3px] border border-[var(--border-color)] w-full">
+                    <button className={`flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded-sm text-xs font-medium cursor-pointer transition-colors ${theme === 'light' ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)]'}`} onClick={() => toggleTheme('light')}>
                       <Sun size={14} /><span>Light</span>
                     </button>
-                    <button className={theme === 'dark' ? styles.themeBtnActive : styles.themeBtn} onClick={() => toggleTheme('dark')}>
+                    <button className={`flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded-sm text-xs font-medium cursor-pointer transition-colors ${theme === 'dark' ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)]'}`} onClick={() => toggleTheme('dark')}>
                       <Moon size={14} /><span>Dark</span>
                     </button>
                   </div>
                 </div>
-                <div className={styles.settingsSection}>
-                  <span className={styles.settingsLabel}>Account</span>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold text-[var(--text-secondary)]">Account</span>
                   <button
-                    className={styles.logoutOption}
+                    className="flex items-center justify-between p-2 rounded-md text-xs font-medium cursor-pointer w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors mb-2"
                     onClick={openEditProfile}
-                    style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', borderColor: 'var(--border-color)', marginBottom: '8px' }}
                   >
                     <span>Edit Profile</span><Users size={14} />
                   </button>
-                  <button className={styles.logoutOption} onClick={logout}>
+                  <button className="flex items-center justify-between p-2 rounded-md text-xs font-medium cursor-pointer w-full bg-red-500/10 text-red-400 border border-red-500/15 hover:bg-red-500/20 hover:border-red-500/30 transition-colors" onClick={logout}>
                     <span>Log Out</span><LogOut size={14} />
                   </button>
                 </div>
@@ -106,44 +104,44 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className={styles.searchContainer}>
+      <div className={`p-3 border-b border-[var(--border-color)] ${sidebarCollapsed ? 'hidden' : ''}`}>
         <input
           type="text"
           placeholder="Search by username, name, or email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className={styles.searchInput}
+          className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent-primary)] transition-colors"
         />
       </div>
 
-      <div className={styles.userList}>
+      <div className="flex-grow overflow-y-auto p-3">
         {showUserList || searchQuery ? (
           users.length > 0 ? (
             users.map((u) => {
               const isOnline = onlineUsers.has(u.id);
               return (
-                <div key={u.id} className={styles.listItem} onClick={() => startChatWithUser(u)}>
-                  <div className={styles.userInfo}>
-                    <img src={u.avatarUrl} alt={u.name} className={styles.avatarSmall} />
-                    <div style={{ minWidth: 0 }}>
-                      <div className={styles.userName}>{u.name}</div>
-                      <div className={styles.userNameSub}>@{u.username} • {u.email}</div>
+                <div key={u.id} className={`flex items-center justify-between p-3 rounded-md cursor-pointer hover:bg-[var(--bg-tertiary)] transition-colors mb-1 ${sidebarCollapsed ? 'justify-center' : ''}`} onClick={() => startChatWithUser(u)}>
+                  <div className={`flex items-center gap-3 min-w-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+                    <img src={u.avatarUrl} alt={u.name} className="w-8 h-8 rounded-full object-cover" />
+                    <div className={sidebarCollapsed ? 'hidden' : 'min-w-0'}>
+                      <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{u.name}</div>
+                      <div className="text-[11px] text-[var(--text-secondary)] truncate">@{u.username} • {u.email}</div>
                     </div>
                   </div>
-                  <div className={isOnline ? styles.statusOnline : styles.statusIndicator} />
+                  <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-[var(--accent-success)]' : 'bg-[var(--text-muted)]'} ${sidebarCollapsed ? 'absolute ml-5 mt-5 border-2 border-[var(--bg-secondary)]' : ''}`} />
                 </div>
               );
             })
           ) : (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>No users found</div>
+            <div className="py-6 text-center text-sm text-[var(--text-secondary)]">No users found</div>
           )
         ) : conversationsLoading ? (
           [1, 2, 3].map((i) => (
-            <div key={i} className={styles.skeletonListItem} style={{ padding: '12px' }}>
-              <div className={styles.skeletonPulse} style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0 }} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '12px' }}>
-                <div className={styles.skeletonPulse} style={{ width: '40%', height: '10px' }} />
-                <div className={styles.skeletonPulse} style={{ width: '60%', height: '8px' }} />
+            <div key={i} className="flex items-center p-3 gap-3">
+              <div className="w-9 h-9 rounded-full bg-[var(--bg-tertiary)] animate-pulse shrink-0" />
+              <div className={`flex-grow flex flex-col gap-1.5 ${sidebarCollapsed ? 'hidden' : ''}`}>
+                <div className="w-[40%] h-2.5 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                <div className="w-[60%] h-2 bg-[var(--bg-tertiary)] rounded animate-pulse" />
               </div>
             </div>
           ))
@@ -157,27 +155,27 @@ export function Sidebar({
             return (
               <div
                 key={convo.id}
-                className={isActive ? styles.listItemActive : styles.listItem}
+                className={`flex items-center justify-between p-3 rounded-md cursor-pointer hover:bg-[var(--bg-tertiary)] transition-colors mb-1 ${isActive ? 'bg-[var(--bg-tertiary)] border-l-3 border-[var(--accent-primary)]' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
                 onClick={() => selectConvo(convo)}
                 style={isActive && convo.themeColor ? { borderLeftColor: convo.themeColor } : undefined}
               >
-                <div className={styles.userInfo}>
-                  <img src={recipient.avatarUrl} alt={displayName} className={styles.avatarSmall} />
-                  <div>
-                    <div className={styles.userName}>{displayName}</div>
-                    <div className={styles.lastMessage}>
+                <div className={`flex items-center gap-3 min-w-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+                  <img src={recipient.avatarUrl} alt={displayName} className="w-8 h-8 rounded-full object-cover" />
+                  <div className={sidebarCollapsed ? 'hidden' : 'min-w-0'}>
+                    <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{displayName}</div>
+                    <div className="text-xs text-[var(--text-secondary)] truncate max-w-[180px]">
                       {convo.messages[0]
                         ? `${convo.messages[0].senderId === currentUserId ? 'You: ' : ''}${convo.messages[0].content || 'Sent a file'}`
                         : 'No messages yet'}
                     </div>
                   </div>
                 </div>
-                <div className={isOnline ? styles.statusOnline : styles.statusIndicator} />
+                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-[var(--accent-success)]' : 'bg-[var(--text-muted)]'} ${sidebarCollapsed ? 'absolute ml-5 mt-5 border-2 border-[var(--bg-secondary)]' : ''}`} />
               </div>
             );
           })
         ) : (
-          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div className="py-6 text-center text-sm text-[var(--text-secondary)]">
             No conversations active. Click the user icon above to start chatting!
           </div>
         )}

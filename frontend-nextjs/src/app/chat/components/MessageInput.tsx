@@ -2,7 +2,6 @@
 import React from 'react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { Smile, Paperclip, Send, X } from 'lucide-react';
-import styles from '../chat.module.css';
 
 interface MessageInputProps {
   inputText: string;
@@ -37,25 +36,25 @@ export function MessageInput({
     <>
       {/* Reply Drawer Banner */}
       {replyingTo && (
-        <div className={styles.replyDrawer} style={{ borderLeftColor: activeThemeColor }}>
-          <div className={styles.replyDrawerText}>
-            <span className={styles.replyDrawerSender} style={{ color: activeThemeColor }}>
+        <div className="px-4 py-2 bg-[var(--bg-tertiary)] border-t border-[var(--border-color)] border-l-3 flex items-center justify-between text-xs" style={{ borderLeftColor: activeThemeColor }}>
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold" style={{ color: activeThemeColor }}>
               Replying to {replyingTo.sender?.name || 'Message'}
             </span>
-            <span className={styles.replyDrawerContent}>
+            <span className="text-[var(--text-secondary)] truncate">
               {replyingTo.content || (replyingTo.fileUrl ? 'Attachment File' : '')}
             </span>
           </div>
-          <button className={styles.replyDrawerClose} onClick={onCancelReply}>
+          <button className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-0.5" onClick={onCancelReply}>
             <X size={16} />
           </button>
         </div>
       )}
 
       {/* Chat Input Panel */}
-      <div className={styles.inputPanel}>
+      <div className="relative p-4 md:px-5 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] flex items-center gap-3">
         {showEmojiPicker && (
-          <div className={styles.emojiPickerPopover} ref={emojiPickerRef}>
+          <div className="absolute bottom-[76px] right-[70px] z-[1000] shadow-lg rounded-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200" ref={emojiPickerRef}>
             <EmojiPicker
               onEmojiClick={onEmojiClick}
               theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
@@ -66,12 +65,12 @@ export function MessageInput({
           </div>
         )}
 
-        <label className={styles.fileInputLabel} title="Send File Attachment">
+        <label className="flex items-center justify-center cursor-pointer text-[var(--text-secondary)] w-10 h-10 rounded-full hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors" title="Send File Attachment">
           <Paperclip size={18} />
-          <input type="file" onChange={onFileSelect} className={styles.fileInput} disabled={sendingMedia} multiple />
+          <input type="file" onChange={onFileSelect} className="hidden" disabled={sendingMedia} multiple />
         </label>
 
-        <div className={styles.inputWrapper}>
+        <div className="flex-grow relative flex items-center">
           <input
             ref={textInputRef}
             type="text"
@@ -85,12 +84,12 @@ export function MessageInput({
             value={inputText}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={onKeyDown}
-            className={styles.textInput}
+            className="w-full pl-[18px] pr-11 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full text-[var(--text-primary)] text-sm outline-none focus:border-[var(--accent-primary)] transition-colors"
             disabled={uploading}
           />
           <button
             type="button"
-            className={styles.emojiBtn}
+            className="absolute right-3 bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 flex items-center justify-center rounded-full hover:text-[var(--accent-primary)] hover:scale-110 transition-all"
             onClick={onToggleEmojiPicker}
             title="Choose an Emoji"
           >
@@ -100,7 +99,7 @@ export function MessageInput({
 
         {inputText.trim() ? (
           <button
-            className={styles.btnSend}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer hover:opacity-95 transition-opacity bg-[var(--accent-primary)] shrink-0 shadow-[0_2px_8px_rgba(59,130,246,0.3)]"
             onClick={onSend}
             disabled={uploading}
             style={
@@ -116,7 +115,7 @@ export function MessageInput({
         ) : (
           <button
             type="button"
-            className={styles.btnQuickEmoji}
+            className="bg-transparent border-none text-xl cursor-pointer flex items-center justify-center w-[38px] h-[38px] rounded-md hover:bg-[var(--bg-tertiary)] transition-colors select-none"
             onClick={onSendDefaultEmoji}
             title={`Send Quick Emoji (${activeDefaultEmoji})`}
           >
