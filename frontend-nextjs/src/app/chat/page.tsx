@@ -184,8 +184,10 @@ export default function ChatPage() {
   const [mediaRotations, setMediaRotations] = useState<Record<number, number>>({});
   const [isDrawMode, setIsDrawMode] = useState<boolean>(false);
   const [drawColor, setDrawColor] = useState<string>('#ef4444');
-  const [isViewOnce, setIsViewOnce] = useState<boolean>(false);
+  const [brushSize, setBrushSize] = useState<number>(6);
   const [showFilterPicker, setShowFilterPicker] = useState<boolean>(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [showMediaPreviewModal, setShowMediaPreviewModal] = useState<boolean>(false);
   const [sendingMedia, setSendingMedia] = useState<boolean>(false);
   const [qualityMode, setQualityMode] = useState<'standard' | 'hd'>('standard');
@@ -203,10 +205,13 @@ export default function ChatPage() {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
+    const x = (clientX - rect.left) * (canvas.width / (rect.width || 1));
+    const y = (clientY - rect.top) * (canvas.height / (rect.height || 1));
+
     ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+    ctx.moveTo(x, y);
     ctx.strokeStyle = drawColor;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     isDrawingRef.current = true;
@@ -222,7 +227,11 @@ export default function ChatPage() {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    const x = (clientX - rect.left) * (canvas.width / (rect.width || 1));
+    const y = (clientY - rect.top) * (canvas.height / (rect.height || 1));
+
+    ctx.lineWidth = brushSize;
+    ctx.lineTo(x, y);
     ctx.stroke();
   };
 
@@ -236,6 +245,17 @@ export default function ChatPage() {
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  };
+
+  const scrollToMessage = (msgId: string) => {
+    const element = document.getElementById(`msg-${msgId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add(styles.highlightMessage);
+      setTimeout(() => {
+        element.classList.remove(styles.highlightMessage);
+      }, 1500);
     }
   };
 
@@ -994,11 +1014,9 @@ export default function ChatPage() {
     autoScrollBottomRef.current = true;
 
     try {
-      for (let i = 0; i < pendingMediaItems.length; i++) {
-        const item = pendingMediaItems[i];
+      const uploadPromises = pendingMediaItems.map(async (item, i) => {
         const filter = mediaFilters[i] || 'none';
         const rotation = mediaRotations[i] || 0;
-        const caption = mediaCaptions[i] || '';
 
         let editedFile = await synthesizeEditedMedia(
           item,
@@ -1021,16 +1039,26 @@ export default function ChatPage() {
         });
         if (!res.ok) throw new Error('Upload failed');
         const data = await res.json();
+        return {
+          fileUrl: data.fileUrl as string,
+          fileType: data.fileType as string,
+        };
+      });
 
-        socket.emit('send-message', {
-          conversationId: activeConvo.id,
-          content: caption.trim() || undefined,
-          fileUrl: data.fileUrl,
-          fileType: data.fileType,
-          isViewOnce: isViewOnce || undefined,
-          replyToId: replyingTo ? replyingTo.id : undefined,
-        });
-      }
+      const uploadedFiles = await Promise.all(uploadPromises);
+      const combinedUrls = uploadedFiles.map((f) => f.fileUrl).join(',');
+      const combinedTypes = uploadedFiles.map((f) => f.fileType).join(',');
+
+      const captionsArr = Object.values(mediaCaptions).map((c) => c.trim()).filter(Boolean);
+      const combinedCaption = captionsArr.length > 0 ? captionsArr.join('\n') : undefined;
+
+      socket.emit('send-message', {
+        conversationId: activeConvo.id,
+        content: combinedCaption,
+        fileUrl: combinedUrls,
+        fileType: combinedTypes,
+        replyToId: replyingTo ? replyingTo.id : undefined,
+      });
 
       setReplyingTo(null);
       handleCancelMediaPreview();
@@ -1460,6 +1488,7 @@ export default function ChatPage() {
                       return (
                         <div
                           key={msg.id || index}
+                          id={`msg-${msg.id}`}
                           className={`${isSentByMe ? styles.msgSentWrapper : styles.msgReceivedWrapper} ${isPrepended ? styles.msgPrependFadeIn : ''}`}
                         >
                         {/* Hover Action Bar */}
@@ -1584,7 +1613,12 @@ export default function ChatPage() {
                         <div className={isSentByMe ? styles.msgSent : styles.msgReceived}>
                           {/* Quoted Reply Box inside Message */}
                           {msg.replyTo && (
-                            <div className={styles.quotedReplyBox}>
+                            <div 
+                              className={styles.quotedReplyBox}
+                              onClick={() => scrollToMessage(msg.replyTo.id)}
+                              style={{ cursor: 'pointer' }}
+                              title="Click to view original message"
+                            >
                               <div className={styles.quotedSender}>
                                 Replying to {msg.replyTo.sender?.name || 'Message'}
                               </div>
@@ -1595,7 +1629,7 @@ export default function ChatPage() {
                           )}
 
                             {msg.fileUrl ? (
-                              msg.fileType === 'IMAGE' ? (
+                              (msg.fileType?.split(',')[0] === 'IMAGE') ? (
                                 <div
                                   className={styles.msgContentHasMedia}
                                   style={
@@ -1608,12 +1642,52 @@ export default function ChatPage() {
                                       : undefined
                                   }
                                 >
-                                  <img
-                                    src={msg.fileUrl}
-                                    alt="Attachment"
-                                    className={styles.attachmentImage}
-                                    onClick={() => window.open(msg.fileUrl, '_blank')}
-                                  />
+                                  {(() => {
+                                    const urls = msg.fileUrl.split(',');
+                                    if (urls.length > 1) {
+                                      const displayUrls = urls.slice(0, 4);
+                                      const extraCount = urls.length - 3;
+                                      return (
+                                        <div className={`${styles.imageGrid} ${styles[`grid-${Math.min(urls.length, 4)}`]}`}>
+                                          {displayUrls.map((url: string, i: number) => {
+                                            const isLast = i === 3 && urls.length > 4;
+                                            return (
+                                              <div
+                                                key={i}
+                                                className={styles.gridImageWrapper}
+                                                onClick={() => {
+                                                  setLightboxImages(urls);
+                                                  setLightboxIndex(i);
+                                                }}
+                                              >
+                                                <img
+                                                  src={url.trim()}
+                                                  alt="Attachment"
+                                                  className={styles.gridImage}
+                                                />
+                                                {isLast && (
+                                                  <div className={styles.gridImageOverlay}>
+                                                    <span>+{extraCount}</span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <img
+                                        src={msg.fileUrl}
+                                        alt="Attachment"
+                                        className={styles.attachmentImage}
+                                        onClick={() => {
+                                          setLightboxImages(urls);
+                                          setLightboxIndex(0);
+                                        }}
+                                      />
+                                    );
+                                  })()}
                                   {msg.content && <div className={styles.imageCaptionText}>{msg.content}</div>}
                                 </div>
                               ) : (
@@ -1629,14 +1703,36 @@ export default function ChatPage() {
                                       : undefined
                                   }
                                 >
-                                  <a
-                                    href={msg.fileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: 'inherit', textDecoration: 'underline' }}
-                                  >
-                                    View Attachment File
-                                  </a>
+                                  {(() => {
+                                    const urls = msg.fileUrl.split(',');
+                                    if (urls.length > 1) {
+                                      return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                          {urls.map((url: string, i: number) => (
+                                            <a
+                                              key={i}
+                                              href={url.trim()}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              style={{ color: 'inherit', textDecoration: 'underline' }}
+                                            >
+                                              View Attachment File {i + 1}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <a
+                                        href={msg.fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: 'inherit', textDecoration: 'underline' }}
+                                      >
+                                        View Attachment File
+                                      </a>
+                                    );
+                                  })()}
                                   {msg.content && <div style={{ marginTop: '6px' }}>{msg.content}</div>}
                                 </div>
                               )
@@ -1777,7 +1873,7 @@ export default function ChatPage() {
 
                   <label className={styles.fileInputLabel} title="Send File Attachment">
                     <Paperclip size={18} />
-                    <input type="file" onChange={handleFileSelect} className={styles.fileInput} disabled={sendingMedia} />
+                    <input type="file" onChange={handleFileSelect} className={styles.fileInput} disabled={sendingMedia} multiple />
                   </label>
 
                   <div className={styles.inputWrapper}>
@@ -1931,6 +2027,24 @@ export default function ChatPage() {
                           onClick={() => setDrawColor(col)}
                         />
                       ))}
+                      <div className={styles.popoverDivider} />
+                      {[3, 6, 12, 20].map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          className={brushSize === size ? styles.brushSizeBtnActive : styles.brushSizeBtn}
+                          onClick={() => setBrushSize(size)}
+                          title={`Brush Size: ${size}px`}
+                        >
+                          <span
+                            className={styles.brushSizeDot}
+                            style={{
+                              width: `${Math.max(4, size * 0.7 + 2)}px`,
+                              height: `${Math.max(4, size * 0.7 + 2)}px`,
+                            }}
+                          />
+                        </button>
+                      ))}
                     </div>
                   )}
 
@@ -2042,15 +2156,7 @@ export default function ChatPage() {
                         autoFocus
                       />
 
-                      {/* View-Once Toggle Button ① */}
-                      <button
-                        type="button"
-                        className={isViewOnce ? styles.viewOnceBtnActive : styles.viewOnceBtn}
-                        onClick={() => setIsViewOnce((prev) => !prev)}
-                        title={isViewOnce ? 'View Once Enabled' : 'Enable View Once'}
-                      >
-                        ①
-                      </button>
+
 
                       {/* Floating Send Button */}
                       <button
@@ -2465,6 +2571,58 @@ export default function ChatPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxImages.length > 0 && (
+        <div className={styles.lightboxOverlay} onClick={() => setLightboxImages([])}>
+          <button 
+            className={styles.lightboxClose} 
+            onClick={() => setLightboxImages([])}
+            title="Close viewer"
+          >
+            <X size={24} />
+          </button>
+
+          {lightboxImages.length > 1 && (
+            <>
+              <button
+                className={styles.lightboxPrev}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((prev) => (prev === 0 ? lightboxImages.length - 1 : prev - 1));
+                }}
+                title="Previous image"
+              >
+                <ChevronLeft size={36} />
+              </button>
+
+              <button
+                className={styles.lightboxNext}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((prev) => (prev === lightboxImages.length - 1 ? 0 : prev + 1));
+                }}
+                title="Next image"
+              >
+                <ChevronRight size={36} />
+              </button>
+            </>
+          )}
+
+          <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={lightboxImages[lightboxIndex]} 
+              alt={`View ${lightboxIndex + 1}`}
+              className={styles.lightboxImage} 
+            />
+            {lightboxImages.length > 1 && (
+              <div className={styles.lightboxCounter}>
+                Image {lightboxIndex + 1} of {lightboxImages.length}
+              </div>
+            )}
           </div>
         </div>
       )}
