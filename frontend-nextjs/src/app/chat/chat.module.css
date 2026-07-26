@@ -1652,10 +1652,7 @@
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.22), transparent 65%),
-              radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.18), transparent 65%),
-              radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.12), transparent 75%),
-              rgba(8, 9, 16, 0.92);
+  background: var(--preview-overlay-bg);
   backdrop-filter: blur(28px) saturate(190%);
   display: flex;
   flex-direction: column;
@@ -1668,9 +1665,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--preview-text);
+  border-bottom: 1px solid var(--preview-border);
+  background: var(--preview-header-bg);
 }
 
 .mediaPreviewHeaderLeft {
@@ -1682,7 +1679,7 @@
 .mediaPreviewCloseBtn {
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--preview-text);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1693,12 +1690,13 @@
 }
 
 .mediaPreviewCloseBtn:hover {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--preview-btn-hover);
 }
 
 .mediaPreviewTitle {
   font-size: 16px;
   font-weight: 500;
+  color: var(--preview-text);
 }
 
 /* HD / Standard Quality Toggle Switch */
@@ -1708,9 +1706,9 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--preview-control-bg);
+  border: 1px solid var(--preview-border);
+  color: var(--preview-text-muted);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -1718,8 +1716,8 @@
 }
 
 .hdToggle:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  background: var(--preview-btn-hover);
+  color: var(--preview-text);
 }
 
 .hdToggleActive {
@@ -1752,6 +1750,7 @@
   justify-content: center;
   padding: 24px;
   overflow: hidden;
+  background: var(--preview-body-bg);
 }
 
 .mediaPreviewImage {
@@ -1759,7 +1758,7 @@
   max-height: 65vh;
   object-fit: contain;
   border-radius: var(--radius-md);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--preview-img-shadow);
 }
 
 .mediaPreviewDocBox {
@@ -1768,10 +1767,10 @@
   align-items: center;
   gap: 12px;
   padding: 32px 48px;
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: var(--preview-control-bg);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  border: 1px solid var(--preview-border);
+  color: var(--preview-text);
 }
 
 .mediaPreviewDocIcon {
@@ -1785,11 +1784,12 @@
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+  color: var(--preview-text);
 }
 
 .mediaPreviewDocSize {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--preview-text-muted);
 }
 
 .mediaPreviewFooter {
@@ -1797,6 +1797,7 @@
   display: flex;
   justify-content: center;
   width: 100%;
+  background: var(--preview-header-bg);
 }
 
 .mediaPreviewInputWrapper {
@@ -1805,8 +1806,8 @@
   gap: 12px;
   width: 100%;
   max-width: 640px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: var(--preview-input-bg);
+  border: 1px solid var(--preview-border);
   border-radius: var(--radius-full);
   padding: 6px 8px 6px 20px;
   backdrop-filter: blur(8px);
@@ -1817,12 +1818,12 @@
   background: transparent;
   border: none;
   outline: none;
-  color: #ffffff;
+  color: var(--preview-text);
   font-size: 15px;
 }
 
 .mediaPreviewInput::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--preview-text-muted);
 }
 
 .mediaPreviewSendBtn {
@@ -1853,8 +1854,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--preview-control-bg);
+  border: 1px solid var(--preview-border);
   border-radius: var(--radius-full);
   padding: 4px 8px;
   backdrop-filter: blur(12px);
@@ -1863,7 +1864,7 @@
 .editorToolBtn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--preview-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1874,8 +1875,8 @@
 }
 
 .editorToolBtn:hover {
-  background-color: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  background-color: var(--preview-btn-hover);
+  color: var(--preview-text);
 }
 
 .editorToolBtnActive {
@@ -1894,13 +1895,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(18, 18, 28, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--preview-popover-bg);
+  border: 1px solid var(--preview-border);
   border-radius: var(--radius-full);
   padding: 8px 16px;
   z-index: 1010;
   backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--preview-popover-shadow);
 }
 
 .colorSwatch {
@@ -1918,7 +1919,7 @@
 
 .colorSwatchActive {
   composes: colorSwatch;
-  border-color: #ffffff;
+  border-color: var(--preview-text);
   transform: scale(1.25);
   box-shadow: 0 0 8px currentColor;
 }
@@ -1926,7 +1927,7 @@
 .popoverDivider {
   width: 1px;
   height: 20px;
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--preview-border);
   margin: 0 4px;
 }
 
@@ -1939,19 +1940,19 @@
   border-radius: var(--radius-full);
   border: 1px solid transparent;
   background: transparent;
-  color: #ffffff;
+  color: var(--preview-text);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .brushSizeBtn:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--preview-btn-hover);
 }
 
 .brushSizeBtnActive {
   composes: brushSizeBtn;
-  border-color: rgba(255, 255, 255, 0.4);
-  background-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--preview-border-strong);
+  background-color: var(--preview-btn-hover);
 }
 
 .brushSizeDot {
@@ -1969,13 +1970,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(18, 18, 28, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--preview-popover-bg);
+  border: 1px solid var(--preview-border);
   border-radius: var(--radius-lg);
   padding: 10px 16px;
   z-index: 1010;
   backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--preview-popover-shadow);
 }
 
 .filterCard {
@@ -1983,11 +1984,11 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--preview-control-bg);
+  border: 1px solid var(--preview-border);
   border-radius: var(--radius-md);
   padding: 6px 12px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--preview-text-muted);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -1995,8 +1996,8 @@
 }
 
 .filterCard:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: var(--preview-btn-hover);
+  color: var(--preview-text);
 }
 
 .filterCardActive {
@@ -2009,8 +2010,8 @@
 /* View Once Toggle Button */
 .viewOnceBtn {
   background: transparent;
-  border: 1.5px solid rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.7);
+  border: 1.5px solid var(--preview-border-strong);
+  color: var(--preview-text-muted);
   width: 28px;
   height: 28px;
   border-radius: var(--radius-full);
@@ -2024,8 +2025,8 @@
 }
 
 .viewOnceBtn:hover {
-  border-color: #ffffff;
-  color: #ffffff;
+  border-color: var(--preview-text);
+  color: var(--preview-text);
 }
 
 .viewOnceBtnActive {
@@ -2044,6 +2045,7 @@
   gap: 16px;
   padding: 16px 24px 24px 24px;
   width: 100%;
+  background: var(--preview-header-bg);
 }
 
 .thumbnailTray {
@@ -2104,9 +2106,9 @@
   width: 52px;
   height: 52px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px dashed rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background: var(--preview-control-bg);
+  border: 1px dashed var(--preview-border-strong);
+  color: var(--preview-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2116,8 +2118,8 @@
 }
 
 .thumbnailAddBtn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #ffffff;
+  background: var(--preview-btn-hover);
+  border-color: var(--preview-text);
 }
 
 @keyframes pulseHighlight {
@@ -2146,10 +2148,13 @@
   z-index: 10;
 }
 
+/* ========================
+   Lightbox Viewer
+   ======================== */
 .lightboxOverlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(10, 10, 15, 0.95);
+  background-color: var(--lightbox-overlay-bg);
   backdrop-filter: blur(20px);
   z-index: 2000;
   display: flex;
@@ -2162,9 +2167,9 @@
   position: absolute;
   top: 24px;
   right: 24px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--lightbox-btn-bg);
+  border: 1px solid var(--lightbox-btn-border);
+  color: var(--lightbox-text);
   border-radius: var(--radius-full);
   width: 44px;
   height: 44px;
@@ -2177,7 +2182,7 @@
 }
 
 .lightboxClose:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--lightbox-btn-hover);
   transform: scale(1.05);
 }
 
@@ -2186,9 +2191,9 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--lightbox-btn-bg);
+  border: 1px solid var(--lightbox-btn-border);
+  color: var(--lightbox-text);
   border-radius: var(--radius-full);
   width: 56px;
   height: 56px;
@@ -2210,7 +2215,7 @@
 
 .lightboxPrev:hover,
 .lightboxNext:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--lightbox-btn-hover);
   transform: translateY(-50%) scale(1.05);
 }
 
@@ -2229,17 +2234,17 @@
   max-height: 80vh;
   object-fit: contain;
   border-radius: var(--radius-md);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--lightbox-img-shadow);
   animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .lightboxCounter {
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--lightbox-counter-bg);
   padding: 6px 16px;
   border-radius: var(--radius-full);
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--lightbox-text);
   font-size: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--lightbox-btn-border);
 }
 
 @keyframes fadeIn {
@@ -2251,3 +2256,68 @@
   from { transform: scale(0.9); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+/* ========================
+   Dark theme tokens (default)
+   ======================== */
+:root,
+:global(body) {
+  /* Media Preview / Editor */
+  --preview-overlay-bg:
+    radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.22), transparent 65%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.18), transparent 65%),
+    radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.12), transparent 75%),
+    rgba(8, 9, 16, 0.94);
+  --preview-header-bg: rgba(255, 255, 255, 0.03);
+  --preview-body-bg: transparent;
+  --preview-text: #ffffff;
+  --preview-text-muted: rgba(255, 255, 255, 0.5);
+  --preview-border: rgba(255, 255, 255, 0.12);
+  --preview-border-strong: rgba(255, 255, 255, 0.4);
+  --preview-control-bg: rgba(255, 255, 255, 0.08);
+  --preview-input-bg: rgba(255, 255, 255, 0.10);
+  --preview-btn-hover: rgba(255, 255, 255, 0.16);
+  --preview-popover-bg: rgba(18, 18, 28, 0.97);
+  --preview-popover-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --preview-img-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  /* Lightbox */
+  --lightbox-overlay-bg: rgba(10, 10, 15, 0.95);
+  --lightbox-btn-bg: rgba(255, 255, 255, 0.08);
+  --lightbox-btn-border: rgba(255, 255, 255, 0.10);
+  --lightbox-btn-hover: rgba(255, 255, 255, 0.15);
+  --lightbox-text: #ffffff;
+  --lightbox-counter-bg: rgba(0, 0, 0, 0.6);
+  --lightbox-img-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+/* ========================
+   Light theme overrides
+   ======================== */
+:global(body.light-theme) {
+  /* Media Preview / Editor */
+  --preview-overlay-bg:
+    radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.10), transparent 65%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.07), transparent 65%),
+    rgba(240, 242, 248, 0.97);
+  --preview-header-bg: rgba(0, 0, 0, 0.03);
+  --preview-body-bg: transparent;
+  --preview-text: #111827;
+  --preview-text-muted: rgba(0, 0, 0, 0.45);
+  --preview-border: rgba(0, 0, 0, 0.12);
+  --preview-border-strong: rgba(0, 0, 0, 0.30);
+  --preview-control-bg: rgba(0, 0, 0, 0.06);
+  --preview-input-bg: rgba(0, 0, 0, 0.05);
+  --preview-btn-hover: rgba(0, 0, 0, 0.10);
+  --preview-popover-bg: rgba(255, 255, 255, 0.98);
+  --preview-popover-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --preview-img-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  /* Lightbox */
+  --lightbox-overlay-bg: rgba(240, 242, 248, 0.95);
+  --lightbox-btn-bg: rgba(0, 0, 0, 0.07);
+  --lightbox-btn-border: rgba(0, 0, 0, 0.12);
+  --lightbox-btn-hover: rgba(0, 0, 0, 0.13);
+  --lightbox-text: #111827;
+  --lightbox-counter-bg: rgba(255, 255, 255, 0.85);
+  --lightbox-img-shadow: 0 20px 50px rgba(0, 0, 0, 0.20);
+}
+
