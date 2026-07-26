@@ -386,16 +386,55 @@ export class ChatService {
     status: 'MISSED' | 'COMPLETED' | 'REJECTED' | 'BUSY',
     duration?: number
   ) {
-    return this.prisma.callLog.create({
+    const log = await this.prisma.callLog.create({
       data: {
         callerId,
         receiverId,
         conversationId,
         type,
         status,
-        duration,
+        duration: duration || 0,
       },
     });
+
+    const formatDuration = (sec: number) => {
+      const mins = Math.floor(sec / 60);
+      const secs = sec % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    let text = '';
+    const label = type === 'VIDEO' ? 'Video Call' : 'Voice Call';
+    if (status === 'COMPLETED') {
+      text = `${label} - Completed (${formatDuration(duration || 0)})`;
+    } else if (status === 'REJECTED') {
+      text = `${label} - Declined`;
+    } else if (status === 'BUSY') {
+      text = `${label} - Busy`;
+    } else {
+      text = `${label} - Missed`;
+    }
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: callerId,
+        conversationId,
+        content: text,
+        isSystem: true,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    return { log, systemMessage };
   }
 
   async getConversation(conversationId: string) {

@@ -187,20 +187,36 @@ const CallOverlay: React.FC = () => {
             ) : (
               <Phone size={14} style={{ color: 'var(--accent-success, #22c55e)' }} />
             )}
-            <span className={styles.status} style={{ margin: 0, fontSize: '13px' }}>
+            <span 
+              className={styles.status} 
+              style={{ 
+                margin: 0, 
+                fontSize: '13px', 
+                color: activeCall.status === 'busy' || activeCall.status === 'declined' || activeCall.status === 'ended' 
+                  ? '#ef4444' 
+                  : undefined 
+              }}
+            >
               {activeCall.status === 'ringing'
                 ? activeCall.role === 'caller'
                   ? `${activeCall.type === 'VIDEO' ? 'Video' : 'Audio'} Call Ringing...`
                   : `Incoming ${activeCall.type === 'VIDEO' ? 'Video' : 'Audio'} Call...`
                 : activeCall.status === 'connecting'
                 ? 'Connecting...'
+                : activeCall.status === 'busy'
+                ? 'User is busy on another call'
+                : activeCall.status === 'declined'
+                ? 'Call declined'
+                : activeCall.status === 'ended'
+                ? 'Call ended'
                 : `Connected (${activeCall.type === 'VIDEO' ? 'Video' : 'Audio'} Call)`}
             </span>
           </div>
         </div>
 
         <div className={styles.controls}>
-          {isRinging && activeCall.role === 'receiver' ? (
+          {activeCall.status === 'busy' || activeCall.status === 'declined' || activeCall.status === 'ended' ? null : (
+            isRinging && activeCall.role === 'receiver' ? (
             <>
               <button
                 className={`${styles.btn} ${styles.btnAnswer}`}
@@ -238,7 +254,7 @@ const CallOverlay: React.FC = () => {
                 <PhoneOff size={24} />
               </button>
             </div>
-          )}
+          ))}
         </div>
         {/* Hidden audio element to play remote stream in audio call */}
         {isConnected && activeCall.type === 'AUDIO' && (

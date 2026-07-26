@@ -11,7 +11,7 @@ interface ActiveCall {
   peerName?: string;
   peerAvatar?: string;
   conversationId: string;
-  status: 'idle' | 'ringing' | 'connecting' | 'connected';
+  status: 'idle' | 'ringing' | 'connecting' | 'connected' | 'busy' | 'declined' | 'ended';
 }
 
 interface CallContextType {
@@ -185,6 +185,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
   const audioSynthRef = useRef<CallAudioSynthesizer | null>(null);
+  const activeCallRef = useRef<ActiveCall | null>(null);
+
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
   // Initialize synthesizer
   useEffect(() => {
@@ -199,6 +204,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!socket) return;
 
     socket.on('incoming-call', (data: { from: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string; callerName?: string; callerAvatar?: string }) => {
+      if (activeCallRef.current && activeCallRef.current.status !== 'idle') {
+        socket.emit('reject-call', {
+          to: data.from,
+          conversationId: data.conversationId,
+          type: data.type,
+          reason: 'busy',
+        });
+        return;
+      }
       setActiveCall({
         role: 'receiver',
         type: data.type,
@@ -235,12 +249,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    socket.on('call-rejected', () => {
-      cleanupCall();
+    socket.on('call-rejected', (data?: { reason?: string }) => {
+      if (data?.reason === 'busy') {
+        setActiveCall(prev => prev ? { ...prev, status: 'busy' } : null);
+      } else {
+        setActiveCall(prev => prev ? { ...prev, status: 'declined' } : null);
+      }
+      setTimeout(cleanupCall, 2000);
     });
 
     socket.on('call-ended', () => {
-      cleanupCall();
+      setActiveCall(prev => prev ? { ...prev, status: 'ended' } : null);
+      setTimeout(cleanupCall, 2000);
     });
 
     socket.on('call-failed', (err: { reason: string }) => {

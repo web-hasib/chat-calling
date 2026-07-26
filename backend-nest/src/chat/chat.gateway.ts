@@ -199,7 +199,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } else {
       client.emit('call-failed', { reason: 'User offline' });
       // Log missed call
-      this.chatService.logCall(fromUserId, data.to, data.conversationId, data.type, 'MISSED', 0);
+      this.chatService.logCall(fromUserId, data.to, data.conversationId, data.type, 'MISSED', 0).then((res) => {
+        if (res?.systemMessage) {
+          this.server.emit(`message-${data.conversationId}`, res.systemMessage);
+          this.server.emit('new-message-notification', res.systemMessage);
+        }
+      });
     }
   }
 
@@ -232,14 +237,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('reject-call')
   handleRejectCall(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { to: string; conversationId: string; type: 'AUDIO' | 'VIDEO' }
+    @MessageBody() data: { to: string; conversationId: string; type: 'AUDIO' | 'VIDEO'; reason?: string }
   ) {
     const callerSocketId = this.activeUsers.get(data.to);
     if (callerSocketId) {
-      this.server.to(callerSocketId).emit('call-rejected');
+      this.server.to(callerSocketId).emit('call-rejected', { reason: data.reason });
     }
     const userId = client.data.userId;
-    this.chatService.logCall(data.to, userId, data.conversationId, data.type, 'REJECTED', 0);
+    const status = data.reason === 'busy' ? 'BUSY' : 'REJECTED';
+    this.chatService.logCall(data.to, userId, data.conversationId, data.type, status, 0).then((res) => {
+      if (res?.systemMessage) {
+        this.server.emit(`message-${data.conversationId}`, res.systemMessage);
+        this.server.emit('new-message-notification', res.systemMessage);
+      }
+    });
   }
 
   @SubscribeMessage('end-call')
@@ -252,6 +263,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(targetSocketId).emit('call-ended');
     }
     const userId = client.data.userId;
-    this.chatService.logCall(userId, data.to, data.conversationId, data.type, 'COMPLETED', data.duration);
+    this.chatService.logCall(userId, data.to, data.conversationId, data.type, 'COMPLETED', data.duration).then((res) => {
+      if (res?.systemMessage) {
+        this.server.emit(`message-${data.conversationId}`, res.systemMessage);
+        this.server.emit('new-message-notification', res.systemMessage);
+      }
+    });
   }
 }
