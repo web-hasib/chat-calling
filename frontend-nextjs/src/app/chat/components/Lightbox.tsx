@@ -15,18 +15,26 @@ export function Lightbox({ images, index, onClose, onPrev, onNext }: LightboxPro
   if (images.length === 0) return null;
   return (
     <div className={styles.lightboxOverlay} onClick={onClose}>
-      <button className={styles.lightboxClose} onClick={onClose}><X size={22} /></button>
+      <button className={styles.lightboxClose} onClick={onClose}>
+        <X size={22} />
+      </button>
       {images.length > 1 && (
         <>
           <button
             className={styles.lightboxPrev}
-            onClick={(e) => { e.stopPropagation(); onPrev(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrev();
+            }}
           >
             <ChevronLeft size={36} />
           </button>
           <button
             className={styles.lightboxNext}
-            onClick={(e) => { e.stopPropagation(); onNext(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onNext();
+            }}
           >
             <ChevronRight size={36} />
           </button>

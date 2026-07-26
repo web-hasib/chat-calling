@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
-import { X, Edit3, Check, Copy, Upload, Trash2, Sparkles } from 'lucide-react';
+import { Edit3, Check, Copy, Upload, Trash2, Sparkles, X } from 'lucide-react';
 import styles from '../chat.module.css';
 import { THEME_PRESETS, BG_PRESETS, DEFAULT_EMOJI_PRESETS } from '../constants';
 
@@ -51,11 +51,13 @@ export function ChatDetails({
     <div className={`${styles.detailsSidebar} ${styles.detailsSidebarMobile}`}>
       <div className={styles.detailsHeader}>
         <h3 className={styles.detailsTitle}>Chat Details</h3>
-        <button className={styles.actionBtn} onClick={onClose}><X size={18} /></button>
+        <button className={styles.actionBtn} onClick={onClose}>
+          <X size={18} />
+        </button>
       </div>
 
       <div className={styles.detailsContent}>
-        {/* Profile Card */}
+        {/* Participant Profile Card */}
         <div className={styles.detailsProfileCard}>
           <img
             src={recipient?.avatarUrl}
@@ -84,7 +86,7 @@ export function ChatDetails({
           </div>
         </div>
 
-        {/* Nicknames */}
+        {/* Nicknames Section */}
         <div className={styles.detailsSection}>
           <div className={styles.detailsSectionTitle}>Nicknames</div>
           {activeConvo.participants?.map((p: any) => {
@@ -97,20 +99,27 @@ export function ChatDetails({
                       {p.nickname || p.user?.name || p.user?.username}
                     </span>
                     {p.nickname && (
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '6px' }}>({p.user?.name})</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '6px' }}>
+                        ({p.user?.name})
+                      </span>
                     )}
                   </div>
                   <button
                     className={styles.actionIconBtn}
                     onClick={() => {
-                      if (isEditing) { setEditingParticipantId(null); }
-                      else { setEditingParticipantId(p.userId); setNicknameInput(p.nickname || ''); }
+                      if (isEditing) {
+                        setEditingParticipantId(null);
+                      } else {
+                        setEditingParticipantId(p.userId);
+                        setNicknameInput(p.nickname || '');
+                      }
                     }}
                     title="Edit Nickname"
                   >
                     <Edit3 size={14} />
                   </button>
                 </div>
+
                 {isEditing && (
                   <div className={styles.nicknameRow}>
                     <input
@@ -134,7 +143,7 @@ export function ChatDetails({
           })}
         </div>
 
-        {/* Theme Colors */}
+        {/* Theme Colors Section */}
         <div className={styles.detailsSection}>
           <div className={styles.detailsSectionTitle}>Chat Theme</div>
           <div className={styles.colorGrid}>
@@ -155,7 +164,7 @@ export function ChatDetails({
           </div>
         </div>
 
-        {/* Default Emoji */}
+        {/* Quick Default Emoji Section */}
         <div className={styles.detailsSection}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className={styles.detailsSectionTitle}>Quick Emoji</div>
@@ -177,13 +186,20 @@ export function ChatDetails({
             })}
           </div>
           <div style={{ position: 'relative' }}>
-            <button className={styles.bgUploadBtn} onClick={() => setShowDefaultEmojiPickerPopover(!showDefaultEmojiPickerPopover)}>
-              <Sparkles size={14} /><span>Choose Custom Emoji</span>
+            <button
+              className={styles.bgUploadBtn}
+              onClick={() => setShowDefaultEmojiPickerPopover(!showDefaultEmojiPickerPopover)}
+            >
+              <Sparkles size={14} />
+              <span>Choose Custom Emoji</span>
             </button>
             {showDefaultEmojiPickerPopover && (
               <div className={styles.detailsEmojiPickerPopover} ref={defaultEmojiPickerRef}>
                 <EmojiPicker
-                  onEmojiClick={(d) => { updateChatSettings({ defaultEmoji: d.emoji }); setShowDefaultEmojiPickerPopover(false); }}
+                  onEmojiClick={(emojiData) => {
+                    updateChatSettings({ defaultEmoji: emojiData.emoji });
+                    setShowDefaultEmojiPickerPopover(false);
+                  }}
                   theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
                   searchDisabled={false}
                   width="100%"
@@ -194,7 +210,7 @@ export function ChatDetails({
           </div>
         </div>
 
-        {/* Background Wallpaper */}
+        {/* Chat Background Image Section */}
         <div className={styles.detailsSection}>
           <div className={styles.detailsSectionTitle}>Background Wallpaper</div>
           <div className={styles.bgPresetGrid}>
@@ -221,9 +237,16 @@ export function ChatDetails({
           <label className={styles.bgUploadBtn}>
             <Upload size={14} />
             <span>{isUploadingBg ? 'Uploading Image...' : 'Upload Background Image'}</span>
-            <input type="file" accept="image/*" onChange={onBgUpload} style={{ display: 'none' }} disabled={isUploadingBg} />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onBgUpload}
+              style={{ display: 'none' }}
+              disabled={isUploadingBg}
+            />
           </label>
 
+          {/* Uploaded / Custom Background Images Preview List */}
           {customUploadedBgs.length > 0 && (
             <div className={styles.customBgList}>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '4px' }}>
@@ -232,12 +255,26 @@ export function ChatDetails({
               {customUploadedBgs.map((url, idx) => {
                 const isActive = activeBgImage === url;
                 return (
-                  <div key={idx} className={styles.customBgItem} style={isActive ? { borderColor: activeThemeColor } : undefined}>
-                    <div className={styles.customBgItemInfo} onClick={() => updateChatSettings({ bgImage: url })} style={{ cursor: 'pointer', flex: 1 }}>
+                  <div
+                    key={idx}
+                    className={styles.customBgItem}
+                    style={isActive ? { borderColor: activeThemeColor } : undefined}
+                  >
+                    <div
+                      className={styles.customBgItemInfo}
+                      onClick={() => updateChatSettings({ bgImage: url })}
+                      style={{ cursor: 'pointer', flex: 1 }}
+                    >
                       <img src={url} alt="Custom Background" className={styles.customBgThumb} />
-                      <span className={styles.customBgLabel}>{isActive ? 'Active Custom Image' : `Uploaded Wallpaper ${idx + 1}`}</span>
+                      <span className={styles.customBgLabel}>
+                        {isActive ? 'Active Custom Image' : `Uploaded Wallpaper ${idx + 1}`}
+                      </span>
                     </div>
-                    <button className={styles.actionIconBtnDanger} onClick={() => onDeleteCustomBg(url)} title="Delete uploaded image">
+                    <button
+                      className={styles.actionIconBtnDanger}
+                      onClick={() => onDeleteCustomBg(url)}
+                      title="Delete uploaded image"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -246,9 +283,14 @@ export function ChatDetails({
             </div>
           )}
 
+          {/* Clear Background Image / Reset to Default Button */}
           {Boolean(activeBgImage) && (
-            <button className={styles.clearBgBtn} onClick={() => updateChatSettings({ bgImage: '' })}>
-              <X size={14} /><span>Clear Wallpaper (Use Default)</span>
+            <button
+              className={styles.clearBgBtn}
+              onClick={() => updateChatSettings({ bgImage: '' })}
+            >
+              <X size={14} />
+              <span>Clear Wallpaper (Use Default)</span>
             </button>
           )}
         </div>

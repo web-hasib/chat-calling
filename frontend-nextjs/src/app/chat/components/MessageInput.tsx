@@ -35,7 +35,7 @@ export function MessageInput({
 }: MessageInputProps) {
   return (
     <>
-      {/* Reply Banner */}
+      {/* Reply Drawer Banner */}
       {replyingTo && (
         <div className={styles.replyDrawer} style={{ borderLeftColor: activeThemeColor }}>
           <div className={styles.replyDrawerText}>
@@ -52,7 +52,7 @@ export function MessageInput({
         </div>
       )}
 
-      {/* Input Panel */}
+      {/* Chat Input Panel */}
       <div className={styles.inputPanel}>
         {showEmojiPicker && (
           <div className={styles.emojiPickerPopover} ref={emojiPickerRef}>
@@ -88,7 +88,12 @@ export function MessageInput({
             className={styles.textInput}
             disabled={uploading}
           />
-          <button type="button" className={styles.emojiBtn} onClick={onToggleEmojiPicker} title="Choose an Emoji">
+          <button
+            type="button"
+            className={styles.emojiBtn}
+            onClick={onToggleEmojiPicker}
+            title="Choose an Emoji"
+          >
             <Smile size={20} />
           </button>
         </div>

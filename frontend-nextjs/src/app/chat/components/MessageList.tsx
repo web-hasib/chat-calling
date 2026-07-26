@@ -56,7 +56,7 @@ export function MessageList({
       ref={messageAreaRef}
       onScroll={onScroll}
     >
-      {/* Load More */}
+      {/* Feature 3: Pagination Load More Header */}
       {hasMore && (
         <div className={styles.loadMoreContainer}>
           <button className={styles.loadMoreBtn} onClick={onLoadMore} disabled={loadingMore}>
@@ -65,7 +65,6 @@ export function MessageList({
         </div>
       )}
 
-      {/* Switching thread skeleton */}
       {isSwitchingThread ? (
         <div className={styles.skeletonContainer}>
           <div className={`${styles.skeletonBubble} ${styles.skeletonReceived}`} style={{ width: '60%', height: '42px' }} />

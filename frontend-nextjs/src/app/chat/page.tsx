@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { MessageSquare } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export default function ChatPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-  // ── UI-only state (stays in orchestrator) ──
+  // ── UI-only state ──
   const [viewMode, setViewMode] = useState<'sidebar' | 'chat'>('sidebar');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showUserList, setShowUserList] = useState(false);
@@ -74,6 +74,7 @@ export default function ChatPage() {
   const deleteTooltipRef = useRef<HTMLDivElement | null>(null);
   const defaultEmojiPickerRef = useRef<HTMLDivElement | null>(null);
 
+  // ── Custom hooks ──
   const [isRecipientTyping, setIsRecipientTyping] = useState(false);
 
   const chat = useChat(user, token, setIsRecipientTyping);
@@ -248,7 +249,6 @@ export default function ChatPage() {
     }
   };
 
-  // ── Edit profile handlers ──
   const openEditProfile = () => {
     setEditName(user?.name || '');
     setEditUsername(user?.username || '');

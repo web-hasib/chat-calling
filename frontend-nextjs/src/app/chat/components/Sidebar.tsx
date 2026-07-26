@@ -40,7 +40,7 @@ export function Sidebar({
   currentUserId,
 }: SidebarProps) {
   return (
-    <div className={styles.sidebar}>
+    <div className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
       <div className={styles.sidebarHeader}>
         <div className={styles.userProfile}>
           <img src={user.avatarUrl} alt={user.name} className={styles.avatar} />

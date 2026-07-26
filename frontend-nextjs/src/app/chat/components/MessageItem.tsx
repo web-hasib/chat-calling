@@ -43,80 +43,19 @@ export function MessageItem({
   onToggleReaction, onDeleteToggle, onConfirmDelete,
   onScrollToMessage, onOpenLightbox,
 }: MessageItemProps) {
-  const bubbleStyle = isSentByMe
-    ? activeThemeGradient
-      ? { background: activeThemeGradient }
-      : activeThemeColor
-      ? { background: activeThemeColor }
-      : undefined
-    : undefined;
-
-  const renderFileContent = () => {
-    const urls = msg.fileUrl.split(',');
-    const isImageType = msg.fileType?.split(',')[0] === 'IMAGE';
-
-    if (isImageType) {
-      if (urls.length > 1) {
-        const displayUrls = urls.slice(0, 4);
-        const extraCount = urls.length - 3;
-        return (
-          <div className={`${styles.imageGrid} ${styles[`grid-${Math.min(urls.length, 4)}`]}`}>
-            {displayUrls.map((url: string, i: number) => {
-              const isLast = i === 3 && urls.length > 4;
-              return (
-                <div
-                  key={i}
-                  className={styles.gridImageWrapper}
-                  onClick={() => { onOpenLightbox(urls, i); }}
-                >
-                  <img src={url.trim()} alt="Attachment" className={styles.gridImage} />
-                  {isLast && (
-                    <div className={styles.gridImageOverlay}>
-                      <span>+{extraCount}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-      return (
-        <img
-          src={msg.fileUrl}
-          alt="Attachment"
-          className={styles.attachmentImage}
-          onClick={() => onOpenLightbox(urls, 0)}
-        />
-      );
-    }
-
-    // Document
-    if (urls.length > 1) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {urls.map((url: string, i: number) => (
-            <a key={i} href={url.trim()} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              View Attachment File {i + 1}
-            </a>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
-        View Attachment File
-      </a>
-    );
-  };
-
   return (
     <div
       id={`msg-${msg.id}`}
       className={`${isSentByMe ? styles.msgSentWrapper : styles.msgReceivedWrapper} ${isPrepended ? styles.msgPrependFadeIn : ''}`}
     >
       {/* Hover Action Bar */}
-      <div className={deleteConfirmMsgId === msg.id ? `${styles.msgActionsHover} ${styles.msgActionsHoverActive}` : styles.msgActionsHover}>
+      <div
+        className={
+          deleteConfirmMsgId === msg.id
+            ? `${styles.msgActionsHover} ${styles.msgActionsHoverActive}`
+            : styles.msgActionsHover
+        }
+      >
         <button
           className={styles.actionIconBtn}
           onClick={() => onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id)}
@@ -124,7 +63,11 @@ export function MessageItem({
         >
           <Smile size={14} />
         </button>
-        <button className={styles.actionIconBtn} onClick={() => onReply(msg)} title="Reply to Message">
+        <button
+          className={styles.actionIconBtn}
+          onClick={() => onReply(msg)}
+          title="Reply to Message"
+        >
           <Reply size={14} />
         </button>
         {isSentByMe && (
@@ -147,16 +90,28 @@ export function MessageItem({
                 <button
                   type="button"
                   className={styles.deleteTooltipConfirmBtn}
-                  onPointerDown={(e) => { e.stopPropagation(); onConfirmDelete(msg.id); }}
-                  onClick={(e) => { e.stopPropagation(); onConfirmDelete(msg.id); }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onConfirmDelete(msg.id);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmDelete(msg.id);
+                  }}
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   className={styles.deleteTooltipCancelBtn}
-                  onPointerDown={(e) => { e.stopPropagation(); onDeleteToggle(null); }}
-                  onClick={(e) => { e.stopPropagation(); onDeleteToggle(null); }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onDeleteToggle(null);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteToggle(null);
+                  }}
                   title="Cancel"
                 >
                   <X size={14} />
@@ -167,17 +122,24 @@ export function MessageItem({
         )}
       </div>
 
-      {/* Quick Reaction Picker */}
+      {/* Emoji Reaction Picker Bar */}
       {activeReactionPickerId === msg.id && (
         <div className={styles.reactionPicker} ref={reactionPickerRef}>
           {['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) => (
-            <button key={emoji} className={styles.reactionOption} onClick={() => onToggleReaction(msg.id, emoji)}>
+            <button
+              key={emoji}
+              className={styles.reactionOption}
+              onClick={() => onToggleReaction(msg.id, emoji)}
+            >
               {emoji}
             </button>
           ))}
           <button
             className={styles.reactionOptionPlus}
-            onClick={() => { onReactionPickerToggle(null); onCustomEmojiMsgToggle(msg.id); }}
+            onClick={() => {
+              onReactionPickerToggle(null);
+              onCustomEmojiMsgToggle(msg.id);
+            }}
             title="React with any emoji"
           >
             <Plus size={14} />
@@ -185,11 +147,11 @@ export function MessageItem({
         </div>
       )}
 
-      {/* Full Emoji Picker */}
+      {/* Custom Any Emoji Picker Popover */}
       {activeCustomEmojiMsgId === msg.id && (
         <div className={styles.customEmojiPickerPopover} ref={customReactionPickerRef}>
           <EmojiPicker
-            onEmojiClick={(d) => onToggleReaction(msg.id, d.emoji)}
+            onEmojiClick={(emojiData) => onToggleReaction(msg.id, emojiData.emoji)}
             theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
             searchDisabled={false}
             width={320}
@@ -198,45 +160,158 @@ export function MessageItem({
         </div>
       )}
 
-      {/* Message Bubble */}
+      {/* Message Bubble Box */}
       <div className={isSentByMe ? styles.msgSent : styles.msgReceived}>
-        {/* Reply Quote */}
+        {/* Quoted Reply Box inside Message */}
         {msg.replyTo && (
-          <div
+          <div 
             className={styles.quotedReplyBox}
             onClick={() => onScrollToMessage(msg.replyTo.id)}
             style={{ cursor: 'pointer' }}
             title="Click to view original message"
           >
-            <div className={styles.quotedSender}>Replying to {msg.replyTo.sender?.name || 'Message'}</div>
+            <div className={styles.quotedSender}>
+              Replying to {msg.replyTo.sender?.name || 'Message'}
+            </div>
             <div className={styles.quotedContent}>
               {msg.replyTo.content || (msg.replyTo.fileUrl ? 'Attachment File' : '')}
             </div>
           </div>
         )}
 
-        {/* Content */}
         {msg.fileUrl ? (
-          msg.fileType?.split(',')[0] === 'IMAGE' ? (
-            <div className={styles.msgContentHasMedia} style={bubbleStyle}>
-              {renderFileContent()}
+          (msg.fileType?.split(',')[0] === 'IMAGE') ? (
+            <div
+              className={styles.msgContentHasMedia}
+              style={
+                isSentByMe
+                  ? activeThemeGradient
+                    ? { background: activeThemeGradient }
+                    : activeThemeColor
+                    ? { background: activeThemeColor }
+                    : undefined
+                  : undefined
+              }
+            >
+              {(() => {
+                const urls = msg.fileUrl.split(',');
+                if (urls.length > 1) {
+                  const displayUrls = urls.slice(0, 4);
+                  const extraCount = urls.length - 3;
+                  return (
+                    <div className={`${styles.imageGrid} ${styles[`grid-${Math.min(urls.length, 4)}`]}`}>
+                      {displayUrls.map((url: string, i: number) => {
+                        const isLast = i === 3 && urls.length > 4;
+                        return (
+                          <div
+                            key={i}
+                            className={styles.gridImageWrapper}
+                            onClick={() => onOpenLightbox(urls, i)}
+                          >
+                            <img
+                              src={url.trim()}
+                              alt="Attachment"
+                              className={styles.gridImage}
+                            />
+                            {isLast && (
+                              <div className={styles.gridImageOverlay}>
+                                <span>+{extraCount}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                return (
+                  <img
+                    src={msg.fileUrl}
+                    alt="Attachment"
+                    className={styles.attachmentImage}
+                    onClick={() => onOpenLightbox(urls, 0)}
+                  />
+                );
+              })()}
               {msg.content && <div className={styles.imageCaptionText}>{msg.content}</div>}
             </div>
           ) : (
-            <div className={styles.msgContent} style={bubbleStyle}>
-              {renderFileContent()}
+            <div
+              className={styles.msgContent}
+              style={
+                isSentByMe
+                  ? activeThemeGradient
+                    ? { background: activeThemeGradient }
+                    : activeThemeColor
+                    ? { background: activeThemeColor }
+                    : undefined
+                  : undefined
+              }
+            >
+              {(() => {
+                const urls = msg.fileUrl.split(',');
+                if (urls.length > 1) {
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {urls.map((url: string, i: number) => (
+                        <a
+                          key={i}
+                          href={url.trim()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: 'inherit', textDecoration: 'underline' }}
+                        >
+                          View Attachment File {i + 1}
+                        </a>
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <a
+                    href={msg.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'inherit', textDecoration: 'underline' }}
+                  >
+                    View Attachment File
+                  </a>
+                );
+              })()}
               {msg.content && <div style={{ marginTop: '6px' }}>{msg.content}</div>}
             </div>
           )
         ) : (
-          <div className={styles.msgContent} style={bubbleStyle}>{msg.content}</div>
+          <div
+            className={styles.msgContent}
+            style={
+              isSentByMe
+                ? activeThemeGradient
+                  ? { background: activeThemeGradient }
+                  : activeThemeColor
+                  ? { background: activeThemeColor }
+                  : undefined
+                : undefined
+            }
+          >
+            {msg.content}
+          </div>
         )}
 
-        {/* Link Preview Card */}
+        {/* Rich Link Preview Card */}
         {msg.linkPreview && (
-          <a href={msg.linkPreview.url} target="_blank" rel="noopener noreferrer" className={styles.linkCard}>
+          <a
+            href={msg.linkPreview.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.linkCard}
+          >
             {msg.linkPreview.image && (
-              <img src={msg.linkPreview.image} alt={msg.linkPreview.title || 'Link preview'} className={styles.linkImage} />
+              <img
+                src={msg.linkPreview.image}
+                alt={msg.linkPreview.title || 'Link preview'}
+                className={styles.linkImage}
+              />
             )}
             <div className={styles.linkMeta}>
               {msg.linkPreview.siteName && (
@@ -244,14 +319,18 @@ export function MessageItem({
                   {msg.linkPreview.siteName} <ExternalLink size={10} style={{ display: 'inline', marginLeft: 2 }} />
                 </div>
               )}
-              {msg.linkPreview.title && <div className={styles.linkTitle}>{msg.linkPreview.title}</div>}
-              {msg.linkPreview.description && <div className={styles.linkDescription}>{msg.linkPreview.description}</div>}
+              {msg.linkPreview.title && (
+                <div className={styles.linkTitle}>{msg.linkPreview.title}</div>
+              )}
+              {msg.linkPreview.description && (
+                <div className={styles.linkDescription}>{msg.linkPreview.description}</div>
+              )}
             </div>
           </a>
         )}
       </div>
 
-      {/* Reaction Badges */}
+      {/* Reaction Badges Pill Row */}
       {(groupedReactions.length > 0 || reactionUpdatingMsgId === msg.id) && (
         <div className={styles.reactionPills}>
           {groupedReactions.map((r) => (
@@ -262,7 +341,8 @@ export function MessageItem({
               disabled={reactionUpdatingMsgId === msg.id}
               style={r.userReacted ? { borderColor: activeThemeColor } : undefined}
             >
-              <span>{r.emoji}</span><span>{r.count}</span>
+              <span>{r.emoji}</span>
+              <span>{r.count}</span>
             </button>
           ))}
           {reactionUpdatingMsgId === msg.id && (
@@ -273,7 +353,7 @@ export function MessageItem({
         </div>
       )}
 
-      {/* Timestamp & Read Receipt */}
+      {/* Timestamp & Read Status Receipts */}
       <div className={styles.msgInfo}>
         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         {isSentByMe && (

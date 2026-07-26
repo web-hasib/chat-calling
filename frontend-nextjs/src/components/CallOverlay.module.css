@@ -139,6 +139,10 @@
   width: 48px;
   height: 48px;
   background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
 }
 
 .videoBtn:hover {
@@ -160,6 +164,10 @@
   width: 48px;
   height: 48px;
   background-color: var(--accent-danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
 }
 
 /* Call timer overlay styles */
