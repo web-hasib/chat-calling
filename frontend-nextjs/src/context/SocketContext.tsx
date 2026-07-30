@@ -36,6 +36,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.log('Connected to WebSocket server');
     });
 
+    socketInstance.on('online-users-list', (userIds: string[]) => {
+      setOnlineUsers(new Set(userIds));
+    });
+
     socketInstance.on('user-status', (data: { userId: string; status: 'online' | 'offline' }) => {
       setOnlineUsers((prev) => {
         const next = new Set(prev);

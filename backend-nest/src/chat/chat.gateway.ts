@@ -44,7 +44,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.userId = userId;
       this.activeUsers.set(userId, client.id);
 
-      // Broadcast user online status
+      // Send list of currently online user IDs to the newly connected client
+      client.emit('online-users-list', Array.from(this.activeUsers.keys()));
+
+      // Broadcast user online status to all connected clients
       this.server.emit('user-status', { userId, status: 'online' });
     } catch (e) {
       client.disconnect();
@@ -182,7 +185,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('call-user')
   handleCallUser(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { to: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string }
+    @MessageBody() data: { to: string; offer: any; type: 'AUDIO' | 'VIDEO'; conversationId: string; callerName?: string; callerAvatar?: string }
   ) {
     const fromUserId = client.data.userId;
     const receiverSocketId = this.activeUsers.get(data.to);
@@ -193,11 +196,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         offer: data.offer,
         type: data.type,
         conversationId: data.conversationId,
+        callerName: data.callerName,
+        callerAvatar: data.callerAvatar,
       });
     } else {
       client.emit('call-failed', { reason: 'User offline' });
       // Log missed call
-      this.chatService.logCall(fromUserId, data.to, data.conversationId, data.type, 'MISSED', 0);
+      this.chatService.logCall(fromUserId, data.to, data.conversationId, data.type, 'MISSED', 0).then((res) => {
+        if (res?.systemMessage) {
+          this.server.emit(`message-${data.conversationId}`, res.systemMessage);
+          this.server.emit('new-message-notification', res.systemMessage);
+        }
+      });
     }
   }
 
@@ -230,14 +240,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('reject-call')
   handleRejectCall(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { to: string; conversationId: string; type: 'AUDIO' | 'VIDEO' }
+    @MessageBody() data: { to: string; conversationId: string; type: 'AUDIO' | 'VIDEO'; reason?: string }
   ) {
     const callerSocketId = this.activeUsers.get(data.to);
     if (callerSocketId) {
-      this.server.to(callerSocketId).emit('call-rejected');
+      this.server.to(callerSocketId).emit('call-rejected', { reason: data.reason });
     }
     const userId = client.data.userId;
-    this.chatService.logCall(data.to, userId, data.conversationId, data.type, 'REJECTED', 0);
+    const status = data.reason === 'busy' ? 'BUSY' : 'REJECTED';
+    this.chatService.logCall(data.to, userId, data.conversationId, data.type, status, 0).then((res) => {
+      if (res?.systemMessage) {
+        this.server.emit(`message-${data.conversationId}`, res.systemMessage);
+        this.server.emit('new-message-notification', res.systemMessage);
+      }
+    });
   }
 
   @SubscribeMessage('end-call')
@@ -250,6 +266,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(targetSocketId).emit('call-ended');
     }
     const userId = client.data.userId;
-    this.chatService.logCall(userId, data.to, data.conversationId, data.type, 'COMPLETED', data.duration);
+    this.chatService.logCall(userId, data.to, data.conversationId, data.type, 'COMPLETED', data.duration).then((res) => {
+      if (res?.systemMessage) {
+        this.server.emit(`message-${data.conversationId}`, res.systemMessage);
+        this.server.emit('new-message-notification', res.systemMessage);
+      }
+    });
   }
 }

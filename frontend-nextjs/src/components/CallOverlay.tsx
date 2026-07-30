@@ -179,21 +179,44 @@ const CallOverlay: React.FC = () => {
           alt="Peer avatar"
           className={isRinging ? styles.ringingAvatar : styles.avatar}
         />
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
           <h2 className={styles.name}>{activeCall.peerName || 'Peer User'}</h2>
-          <p className={styles.status}>
-            {activeCall.status === 'ringing'
-              ? activeCall.role === 'caller'
-                ? 'Ringing...'
-                : 'Incoming Call...'
-              : activeCall.status === 'connecting'
-              ? 'Connecting...'
-              : 'Connected (Audio Call)'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+            {activeCall.type === 'VIDEO' ? (
+              <VideoOn size={16} style={{ color: 'var(--accent-primary, #3b82f6)' }} />
+            ) : (
+              <Phone size={14} style={{ color: 'var(--accent-success, #22c55e)' }} />
+            )}
+            <span 
+              className={styles.status} 
+              style={{ 
+                margin: 0, 
+                fontSize: '13px', 
+                color: activeCall.status === 'busy' || activeCall.status === 'declined' || activeCall.status === 'ended' 
+                  ? '#ef4444' 
+                  : undefined 
+              }}
+            >
+              {activeCall.status === 'ringing'
+                ? activeCall.role === 'caller'
+                  ? `${activeCall.type === 'VIDEO' ? 'Video' : 'Audio'} Call Ringing...`
+                  : `Incoming ${activeCall.type === 'VIDEO' ? 'Video' : 'Audio'} Call...`
+                : activeCall.status === 'connecting'
+                ? 'Connecting...'
+                : activeCall.status === 'busy'
+                ? 'User is busy on another call'
+                : activeCall.status === 'declined'
+                ? 'Call declined'
+                : activeCall.status === 'ended'
+                ? 'Call ended'
+                : `Connected (${activeCall.type === 'VIDEO' ? 'Video' : 'Audio'} Call)`}
+            </span>
+          </div>
         </div>
 
         <div className={styles.controls}>
-          {isRinging && activeCall.role === 'receiver' ? (
+          {activeCall.status === 'busy' || activeCall.status === 'declined' || activeCall.status === 'ended' ? null : (
+            isRinging && activeCall.role === 'receiver' ? (
             <>
               <button
                 className={`${styles.btn} ${styles.btnAnswer}`}
@@ -231,8 +254,21 @@ const CallOverlay: React.FC = () => {
                 <PhoneOff size={24} />
               </button>
             </div>
-          )}
+          ))}
         </div>
+        {/* Hidden audio element to play remote stream in audio call */}
+        {isConnected && activeCall.type === 'AUDIO' && (
+          <audio
+            ref={(el) => {
+              if (el && remoteStream && el.srcObject !== remoteStream) {
+                el.srcObject = remoteStream;
+              }
+            }}
+            autoPlay
+            playsInline
+            style={{ display: 'none' }}
+          />
+        )}
       </div>
     </div>
   );
