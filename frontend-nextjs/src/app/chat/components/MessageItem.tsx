@@ -1,9 +1,7 @@
 'use client';
-import React from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
-import {
-  TooltipProvider, Tooltip, TooltipTrigger, TooltipContent,
-} from '../../../components/ui/tooltip';
 import {
   Smile, Reply, Trash2, X, ExternalLink, Check, CheckCheck, Loader2, Plus,
 } from 'lucide-react';
@@ -55,97 +53,57 @@ export function MessageItem({
     );
   }
 
+  const isDeleteOpen = deleteConfirmMsgId === msg.id;
+
   return (
     <div
       id={`msg-${msg.id}`}
       className={`group relative flex flex-col max-w-[75%] min-w-[60px] w-fit mb-1 ${isSentByMe ? 'self-end items-end' : 'self-start items-start'} ${isPrepended ? 'animate-in fade-in-0 duration-350 slide-in-from-top-1.5' : ''}`}
     >
-      {/* Hover Action Bar */}
+      {/* ── Hover Action Bar with Popover delete confirm ── */}
       <div
-        className={`absolute -top-3.5 z-10 hidden group-hover:flex items-center gap-0.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-md p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity ${deleteConfirmMsgId === msg.id ? 'flex opacity-100' : ''} ${isSentByMe ? 'right-0' : 'left-0'}`}
+        className={`
+          absolute -top-8 z-20
+          flex items-center gap-0.5
+          bg-[var(--bg-secondary)] border border-[var(--border-color)]
+          rounded-xl px-1 py-0.5 shadow-lg
+          transition-all duration-150
+          ${isDeleteOpen
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+          }
+          ${isSentByMe ? 'right-0' : 'left-0'}
+        `}
       >
+        {/* Emoji React */}
         <button
-          className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-          onClick={() => onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id)}
+          type="button"
           title="React with Emoji"
+          onClick={() => onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id)}
+          className="flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
         >
-          <Smile size={14} />
+          <Smile size={13} />
         </button>
+
+        {/* Reply */}
         <button
-          className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          type="button"
+          title="Reply"
           onClick={() => onReply(msg)}
-          title="Reply to Message"
+          className="flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
         >
-          <Reply size={14} />
+          <Reply size={13} />
         </button>
-        <TooltipProvider delayDuration={0}>
-          <Tooltip
-            open={deleteConfirmMsgId === msg.id}
-            onOpenChange={(open: boolean) => !open && onDeleteToggle(null)}
-          >
-            <TooltipTrigger asChild>
-              <button
-                className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                onClick={() => onDeleteToggle(deleteConfirmMsgId === msg.id ? null : msg.id)}
-                title="Delete Message"
-              >
-                <Trash2 size={14} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={8}>
-              {isSentByMe ? (
-                <>
-                  <span className="text-[10px] font-semibold mr-1.5">Delete:</span>
-                  <button
-                    type="button"
-                    className="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1.5"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmDelete(msg.id, 'everyone');
-                    }}
-                  >
-                    Everyone
-                  </button>
-                  <button
-                    type="button"
-                    className="bg-gray-500 hover:bg-gray-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmDelete(msg.id, 'me');
-                    }}
-                  >
-                    Me
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="text-[10px] font-semibold mr-1.5">Delete for me?</span>
-                  <button
-                    type="button"
-                    className="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmDelete(msg.id, 'me');
-                    }}
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 hover:text-[var(--text-primary)] transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteToggle(null);
-                }}
-                title="Cancel"
-              >
-                <X size={14} />
-              </button>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+
+        {/* Delete — portal-based confirm that always stays in viewport */}
+        <DeleteConfirmPopover
+          open={isDeleteOpen}
+          isSentByMe={isSentByMe}
+          onOpen={() => onDeleteToggle(msg.id)}
+          onClose={() => onDeleteToggle(null)}
+          onConfirmEveryone={() => onConfirmDelete(msg.id, 'everyone')}
+          onConfirmMe={() => onConfirmDelete(msg.id, 'me')}
+        />
       </div>
 
       {/* Emoji Reaction Picker Bar */}
@@ -408,5 +366,128 @@ export function MessageItem({
         )}
       </div>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Zero-dependency portal popover for delete confirm.
+   Renders into document.body via ReactDOM.createPortal
+   so it's never clipped by scroll containers or the
+   viewport top edge. Auto-flips top↔bottom.
+───────────────────────────────────────────── */
+interface DeleteConfirmPopoverProps {
+  open: boolean;
+  isSentByMe: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onConfirmEveryone: () => void;
+  onConfirmMe: () => void;
+}
+
+function DeleteConfirmPopover({
+  open, isSentByMe, onOpen, onClose, onConfirmEveryone, onConfirmMe,
+}: DeleteConfirmPopoverProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [flipToBottom, setFlipToBottom] = useState(false);
+
+  // Recalculate position whenever open state changes
+  const recalc = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const popoverH = 48; // estimated height
+    const spaceAbove = rect.top;
+    const shouldFlip = spaceAbove < popoverH + 12;
+    setFlipToBottom(shouldFlip);
+    setCoords({
+      top: shouldFlip ? rect.bottom + 8 : rect.top - popoverH - 8,
+      left: rect.left + rect.width / 2,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      recalc();
+    } else {
+      setCoords(null);
+    }
+  }, [open, recalc]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        popoverRef.current && !popoverRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, onClose]);
+
+  return (
+    <>
+      {/* Trigger button */}
+      <button
+        ref={triggerRef}
+        type="button"
+        title="Delete Message"
+        onClick={() => open ? onClose() : onOpen()}
+        className={`flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent ${open ? 'bg-red-500/20 text-red-400' : 'text-[var(--text-secondary)] hover:bg-red-500/15 hover:text-red-400'}`}
+      >
+        <Trash2 size={13} />
+      </button>
+
+      {/* Portal — renders outside any scroll container */}
+      {open && coords && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div
+          ref={popoverRef}
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+          }}
+          className="flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+        >
+          <span className="text-[11px] font-semibold text-[var(--text-secondary)] whitespace-nowrap">
+            Delete:
+          </span>
+
+          {isSentByMe && (
+            <button
+              type="button"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-colors bg-red-500 hover:bg-red-600 text-white border-none whitespace-nowrap"
+              onClick={(e) => { e.stopPropagation(); onConfirmEveryone(); }}
+            >
+              Everyone
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-colors bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] whitespace-nowrap"
+            onClick={(e) => { e.stopPropagation(); onConfirmMe(); }}
+          >
+            {isSentByMe ? 'Just Me' : 'Delete'}
+          </button>
+
+          <button
+            type="button"
+            className="ml-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-transparent border-none text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            title="Cancel"
+          >
+            <X size={11} />
+          </button>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
