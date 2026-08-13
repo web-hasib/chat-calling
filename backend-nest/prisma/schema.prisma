@@ -27,6 +27,8 @@ model Conversation {
   id            String                    @id @default(uuid())
   isGroup       Boolean                   @default(false)
   name          String?
+  avatarUrl     String?
+  inviteCode    String?                   @unique
   themeColor    String?                   @default("#0084FF")
   themeGradient String?
   bgImage       String?
@@ -42,6 +44,8 @@ model ConversationParticipant {
   userId         String
   conversationId String
   nickname       String?
+  role           String       @default("MEMBER")
+  joinedAt       DateTime     @default(now())
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -55,6 +59,8 @@ model Message {
   fileType       String?
   isRead         Boolean           @default(false)
   isSystem       Boolean           @default(false)
+  isDeleted      Boolean           @default(false)
+  deletedFor     String[]          @default([])
   readAt         DateTime?
   replyToId      String?
   replyTo        Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)

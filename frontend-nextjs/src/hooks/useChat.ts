@@ -264,10 +264,9 @@ export function useChat(
     }, 3000);
   };
 
-  const confirmDeleteMessage = (targetMsgId: string) => {
+  const confirmDeleteMessage = (targetMsgId: string, mode: 'me' | 'everyone' = 'me') => {
     if (!targetMsgId || !socket || !activeConvo) return;
-    socket.emit('delete-message', { messageId: targetMsgId, conversationId: activeConvo.id });
-    setMessages((prev) => prev.filter((m) => m.id !== targetMsgId));
+    socket.emit('delete-message', { messageId: targetMsgId, conversationId: activeConvo.id, mode });
     setDeleteConfirmMsgId(null);
   };
 
@@ -336,6 +335,76 @@ export function useChat(
     return p.nickname || p.user?.name || p.user?.username || 'User';
   };
 
+  // ---------- Group Operations ----------
+
+  const createGroup = async (name: string, avatarUrl: string, participantIds: string[]) => {
+    try {
+      const res = await fetch(`${API_URL}/chat/group`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name, avatarUrl, participantIds }),
+      });
+      if (!res.ok) throw new Error('Failed to create group');
+      const data = await res.json();
+      await fetchConversations();
+      return data.conversation;
+    } catch (e) {
+      console.error(e);
+      alert('Error creating group chat');
+      return null;
+    }
+  };
+
+  const joinGroup = async (inviteCode: string) => {
+    try {
+      const res = await fetch(`${API_URL}/chat/group/join/${inviteCode}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to join group');
+      const data = await res.json();
+      await fetchConversations();
+      return data.conversation;
+    } catch (e) {
+      console.error(e);
+      alert('Error joining group');
+      return null;
+    }
+  };
+
+  const leaveGroupConvo = async (conversationId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/chat/conversation/${conversationId}/leave`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to leave group');
+      const data = await res.json();
+      await fetchConversations();
+      return data;
+    } catch (e) {
+      console.error(e);
+      alert('Error leaving group');
+      return null;
+    }
+  };
+
+  const deleteGroupConvo = async (conversationId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/chat/group/${conversationId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete group');
+      await fetchConversations();
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert('Error deleting group');
+      return false;
+    }
+  };
+
   // ---------- Socket effects ----------
 
   useEffect(() => {
@@ -374,7 +443,8 @@ export function useChat(
     if (!socket || !activeConvo) return;
     const readEvent = `messages-read-${activeConvo.id}`;
     const reactionEvent = `reaction-updated-${activeConvo.id}`;
-    const deleteEvent = `message-deleted-${activeConvo.id}`;
+    const deleteMeEvent = `message-deleted-me-${activeConvo.id}`;
+    const deleteEveryoneEvent = `message-deleted-everyone-${activeConvo.id}`;
     const convoUpdatedEvent = `conversation-updated-${activeConvo.id}`;
 
     socket.on(readEvent, (data: { readerId: string }) => {
@@ -386,8 +456,23 @@ export function useChat(
       setMessages((prev) => prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m)));
       setReactionUpdatingMsgId((prevId) => (prevId === data.messageId ? null : prevId));
     });
-    socket.on(deleteEvent, (data: { messageId: string }) => {
+    socket.on(deleteMeEvent, (data: { messageId: string }) => {
       setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+    });
+    socket.on(deleteEveryoneEvent, (data: { messageId: string }) => {
+      setMessages((prev) => prev.map((m) => {
+        if (m.id === data.messageId) {
+          return {
+            ...m,
+            isDeleted: true,
+            content: `${m.sender?.name || 'User'} removed this message`,
+            fileUrl: null,
+            fileType: null,
+            reactions: []
+          };
+        }
+        return m;
+      }));
     });
     socket.on(convoUpdatedEvent, (data: { conversation: any }) => {
       if (data.conversation) {
@@ -398,7 +483,8 @@ export function useChat(
     return () => {
       socket.off(readEvent);
       socket.off(reactionEvent);
-      socket.off(deleteEvent);
+      socket.off(deleteMeEvent);
+      socket.off(deleteEveryoneEvent);
       socket.off(convoUpdatedEvent);
     };
   }, [socket, activeConvo, user]);
@@ -459,5 +545,9 @@ export function useChat(
     getRecipientInfo,
     getRecipientDisplayName,
     getRecipientParticipant,
+    createGroup,
+    joinGroup,
+    leaveGroupConvo,
+    deleteGroupConvo,
   };
 }

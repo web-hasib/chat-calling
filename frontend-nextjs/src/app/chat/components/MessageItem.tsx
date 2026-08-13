@@ -27,7 +27,7 @@ interface MessageItemProps {
   onCustomEmojiMsgToggle: (id: string | null) => void;
   onToggleReaction: (msgId: string, emoji: string) => void;
   onDeleteToggle: (id: string | null) => void;
-  onConfirmDelete: (id: string) => void;
+  onConfirmDelete: (id: string, mode?: 'me' | 'everyone') => void;
   onScrollToMessage: (id: string) => void;
   onOpenLightbox: (urls: string[], index: number) => void;
 }
@@ -42,6 +42,19 @@ export function MessageItem({
   onToggleReaction, onDeleteToggle, onConfirmDelete,
   onScrollToMessage, onOpenLightbox,
 }: MessageItemProps) {
+  if (msg.isDeleted) {
+    return (
+      <div
+        id={`msg-${msg.id}`}
+        className={`flex flex-col max-w-[75%] min-w-[60px] w-fit mb-1 ${isSentByMe ? 'self-end items-end' : 'self-start items-start'}`}
+      >
+        <div className={`px-4 py-2 rounded-[16px] text-xs italic bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)] ${isSentByMe ? 'rounded-br-[4px]' : 'rounded-bl-[4px]'}`}>
+          {msg.content || `${msg.sender?.name || 'User'} removed this message`}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       id={`msg-${msg.id}`}
@@ -65,56 +78,74 @@ export function MessageItem({
         >
           <Reply size={14} />
         </button>
-        {isSentByMe && (
-          <TooltipProvider delayDuration={0}>
-            <Tooltip
-              open={deleteConfirmMsgId === msg.id}
-              onOpenChange={(open: boolean) => !open && onDeleteToggle(null)}
-            >
-              <TooltipTrigger asChild>
-                <button
-                  className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                  onClick={() => onDeleteToggle(deleteConfirmMsgId === msg.id ? null : msg.id)}
-                  title="Delete Message"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={8}>
-                <span className="text-xs font-semibold mr-2">Delete for everyone?</span>
-                <button
-                  type="button"
-                  className="bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1"
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    onConfirmDelete(msg.id);
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmDelete(msg.id);
-                  }}
-                >
-                  Delete
-                </button>
-                <button
-                  type="button"
-                  className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 hover:text-[var(--text-primary)] transition-colors"
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    onDeleteToggle(null);
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteToggle(null);
-                  }}
-                  title="Cancel"
-                >
-                  <X size={14} />
-                </button>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        <TooltipProvider delayDuration={0}>
+          <Tooltip
+            open={deleteConfirmMsgId === msg.id}
+            onOpenChange={(open: boolean) => !open && onDeleteToggle(null)}
+          >
+            <TooltipTrigger asChild>
+              <button
+                className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                onClick={() => onDeleteToggle(deleteConfirmMsgId === msg.id ? null : msg.id)}
+                title="Delete Message"
+              >
+                <Trash2 size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={8}>
+              {isSentByMe ? (
+                <>
+                  <span className="text-[10px] font-semibold mr-1.5">Delete:</span>
+                  <button
+                    type="button"
+                    className="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmDelete(msg.id, 'everyone');
+                    }}
+                  >
+                    Everyone
+                  </button>
+                  <button
+                    type="button"
+                    className="bg-gray-500 hover:bg-gray-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmDelete(msg.id, 'me');
+                    }}
+                  >
+                    Me
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-[10px] font-semibold mr-1.5">Delete for me?</span>
+                  <button
+                    type="button"
+                    className="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm cursor-pointer mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmDelete(msg.id, 'me');
+                    }}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 hover:text-[var(--text-primary)] transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteToggle(null);
+                }}
+                title="Cancel"
+              >
+                <X size={14} />
+              </button>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Emoji Reaction Picker Bar */}

@@ -16,7 +16,7 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({
-  recipientName, recipientAvatarUrl, isOnline,
+  activeConvo, recipientName, recipientAvatarUrl, isOnline,
   showDetails, activeThemeColor,
   onBack, onAudioCall, onVideoCall, onToggleDetails,
 }: ChatHeaderProps) {
@@ -30,17 +30,23 @@ export function ChatHeader({
         <div className="min-w-0 cursor-pointer" onClick={onToggleDetails}>
           <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{recipientName}</div>
           <div className="text-[11px] text-[var(--text-secondary)]">
-            {isOnline ? 'Online' : 'Offline'}
+            {activeConvo?.isGroup 
+              ? `${activeConvo.participants?.length || 0} members` 
+              : (isOnline ? 'Online' : 'Offline')}
           </div>
         </div>
       </div>
       <div className="flex gap-2">
-        <button className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors" onClick={onAudioCall} title="Audio Call">
-          <Phone size={18} />
-        </button>
-        <button className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors" onClick={onVideoCall} title="Video Call">
-          <Video size={18} />
-        </button>
+        {!activeConvo?.isGroup && (
+          <>
+            <button className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors" onClick={onAudioCall} title="Audio Call">
+              <Phone size={18} />
+            </button>
+            <button className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors" onClick={onVideoCall} title="Video Call">
+              <Video size={18} />
+            </button>
+          </>
+        )}
         <button
           className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
           onClick={onToggleDetails}

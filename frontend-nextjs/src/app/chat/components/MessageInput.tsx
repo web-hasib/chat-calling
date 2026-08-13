@@ -1,5 +1,6 @@
 'use client';
-import React from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { Smile, Paperclip, Send, X } from 'lucide-react';
 
@@ -23,6 +24,7 @@ interface MessageInputProps {
   onEmojiClick: (data: { emoji: string }) => void;
   onToggleEmojiPicker: () => void;
   onCancelReply: () => void;
+  participants?: any[];
 }
 
 export function MessageInput({
@@ -31,7 +33,70 @@ export function MessageInput({
   theme, showEmojiPicker, emojiPickerRef, textInputRef,
   onInputChange, onKeyDown, onSend, onSendDefaultEmoji,
   onFileSelect, onEmojiClick, onToggleEmojiPicker, onCancelReply,
+  participants = [],
 }: MessageInputProps) {
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
+
+  useEffect(() => {
+    if (!participants || participants.length === 0) {
+      setShowMentionList(false);
+      return;
+    }
+    const words = inputText.split(/\s+/);
+    const lastWord = words[words.length - 1];
+    if (lastWord && lastWord.startsWith('@')) {
+      setShowMentionList(true);
+      setMentionSearch(lastWord.slice(1).toLowerCase());
+      setMentionIndex(0);
+    } else {
+      setShowMentionList(false);
+    }
+  }, [inputText, participants]);
+
+  const filteredParticipants = useMemo(() => {
+    return participants.filter((p) => {
+      const name = (p.user?.name || p.user?.username || '').toLowerCase();
+      const username = (p.user?.username || '').toLowerCase();
+      return name.includes(mentionSearch) || username.includes(mentionSearch);
+    });
+  }, [participants, mentionSearch]);
+
+  const selectMention = (targetUser: any) => {
+    const words = inputText.split(/\s+/);
+    words[words.length - 1] = `@${targetUser.username || targetUser.name} `;
+    onInputChange(words.join(' '));
+    setShowMentionList(false);
+    textInputRef.current?.focus();
+  };
+
+  const handleLocalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentionList && filteredParticipants.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev + 1) % filteredParticipants.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev - 1 + filteredParticipants.length) % filteredParticipants.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectMention(filteredParticipants[mentionIndex].user);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionList(false);
+        return;
+      }
+    }
+    onKeyDown(e);
+  };
+
   return (
     <>
       {/* Reply Drawer Banner */}
@@ -53,6 +118,29 @@ export function MessageInput({
 
       {/* Chat Input Panel */}
       <div className="relative p-4 md:px-5 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] flex items-center gap-3">
+        
+        {/* Mention Suggestions Dropdown */}
+        {showMentionList && filteredParticipants.length > 0 && (
+          <div className="absolute bottom-[72px] left-[54px] z-[1000] w-[240px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[200px] overflow-y-auto">
+            {filteredParticipants.map((p, idx) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => selectMention(p.user)}
+                className={`flex items-center gap-2 px-3 py-2 w-full text-left text-xs border-none bg-transparent hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors ${
+                  mentionIndex === idx ? 'bg-[var(--bg-tertiary)]' : 'text-[var(--text-primary)]'
+                }`}
+              >
+                <img src={p.user?.avatarUrl} alt={p.user?.name} className="w-5 h-5 rounded-full object-cover" />
+                <div className="flex flex-col">
+                  <span className="font-semibold">{p.user?.name || p.user?.username}</span>
+                  <span className="text-[var(--text-secondary)] text-[10px]">@{p.user?.username}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
         {showEmojiPicker && (
           <div className="absolute bottom-[76px] right-[70px] z-[1000] shadow-lg rounded-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200" ref={emojiPickerRef}>
             <EmojiPicker
@@ -83,7 +171,7 @@ export function MessageInput({
             }
             value={inputText}
             onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={onKeyDown}
+            onKeyDown={handleLocalKeyDown}
             className="w-full pl-[18px] pr-11 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full text-[var(--text-primary)] text-sm outline-none focus:border-[var(--accent-primary)] transition-colors"
             disabled={uploading}
           />

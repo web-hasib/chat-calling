@@ -32,7 +32,7 @@ interface MessageListProps {
   onCustomEmojiMsgToggle: (id: string | null) => void;
   onToggleReaction: (msgId: string, emoji: string) => void;
   onDeleteToggle: (id: string | null) => void;
-  onConfirmDelete: (id: string) => void;
+  onConfirmDelete: (id: string, mode?: 'me' | 'everyone') => void;
   onScrollToMessage: (id: string) => void;
   onOpenLightbox: (urls: string[], index: number) => void;
 }

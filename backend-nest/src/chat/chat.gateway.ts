@@ -128,17 +128,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('delete-message')
   async handleDeleteMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { messageId: string; conversationId: string }
+    @MessageBody() data: { messageId: string; conversationId: string; mode?: 'me' | 'everyone' }
   ) {
     const userId = client.data.userId;
     if (!userId || !data?.messageId) return;
 
-    const res = await this.chatService.deleteMessage(data.messageId, userId);
-    if (res) {
-      this.server.emit(`message-deleted-${res.conversationId}`, {
-        messageId: res.messageId,
-        conversationId: res.conversationId,
-      });
+    if (data.mode === 'everyone') {
+      const res = await this.chatService.deleteMessageForEveryone(data.messageId, userId);
+      if (res) {
+        this.server.emit(`message-deleted-everyone-${data.conversationId}`, {
+          messageId: data.messageId,
+          conversationId: data.conversationId,
+        });
+      }
+    } else {
+      const res = await this.chatService.deleteMessageForMe(data.messageId, userId);
+      if (res) {
+        client.emit(`message-deleted-me-${data.conversationId}`, {
+          messageId: data.messageId,
+          conversationId: data.conversationId,
+        });
+      }
     }
   }
 

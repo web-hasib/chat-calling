@@ -84,6 +84,7 @@ export class ChatService {
             id: true,
             name: true,
             email: true,
+            username: true,
             avatarUrl: true,
           },
         },
@@ -130,12 +131,20 @@ export class ChatService {
                 id: true,
                 name: true,
                 email: true,
+                username: true,
                 avatarUrl: true,
               },
             },
           },
         },
         messages: {
+          where: {
+            NOT: {
+              deletedFor: {
+                has: userId,
+              },
+            },
+          },
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
@@ -168,6 +177,7 @@ export class ChatService {
                 id: true,
                 name: true,
                 email: true,
+                username: true,
                 avatarUrl: true,
               },
             },
@@ -196,6 +206,7 @@ export class ChatService {
                 id: true,
                 name: true,
                 email: true,
+                username: true,
                 avatarUrl: true,
               },
             },
@@ -205,10 +216,17 @@ export class ChatService {
     });
   }
 
-  async getMessages(conversationId: string, cursor?: string, take = 20) {
+  async getMessages(conversationId: string, userId: string, cursor?: string, take = 20) {
     const limit = Number(take) || 20;
 
-    let whereClause: any = { conversationId };
+    let whereClause: any = {
+      conversationId,
+      NOT: {
+        deletedFor: {
+          has: userId,
+        },
+      },
+    };
 
     if (cursor) {
       const cursorMessage = await this.prisma.message.findUnique({
@@ -345,37 +363,48 @@ export class ChatService {
     });
   }
 
-  async deleteMessage(messageId: string, userId: string) {
+  async deleteMessageForMe(messageId: string, userId: string) {
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },
-      include: {
-        conversation: {
-          include: { participants: true },
+    });
+    if (!message) return null;
+
+    await this.prisma.message.update({
+      where: { id: messageId },
+      data: {
+        deletedFor: {
+          push: userId,
         },
       },
     });
 
-    if (!message) {
-      return null;
-    }
+    return { conversationId: message.conversationId, messageId, mode: 'me', userId };
+  }
 
-    const isParticipant = message.conversation.participants.some(
-      (p) => p.userId === userId,
-    );
-
-    if (!isParticipant) {
-      return null;
-    }
+  async deleteMessageForEveryone(messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      include: { sender: true },
+    });
+    if (!message) return null;
+    if (message.senderId !== userId) return null; // Only sender can delete for everyone
 
     await this.prisma.messageReaction.deleteMany({
       where: { messageId },
     });
 
-    await this.prisma.message.delete({
+    const senderName = message.sender?.name || 'User';
+    await this.prisma.message.update({
       where: { id: messageId },
+      data: {
+        isDeleted: true,
+        content: `${senderName} removed this message`,
+        fileUrl: null,
+        fileType: null,
+      },
     });
 
-    return { conversationId: message.conversationId, messageId };
+    return { conversationId: message.conversationId, messageId, mode: 'everyone' };
   }
 
   async logCall(
@@ -469,6 +498,12 @@ export class ChatService {
       nickname?: string;
     }
   ) {
+    const convo = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
+    if (convo?.isGroup && (data.themeColor !== undefined || data.themeGradient !== undefined || data.bgImage !== undefined || data.defaultEmoji !== undefined)) {
+      const userRole = await this.getParticipantRole(conversationId, userId);
+      if (userRole !== 'CREATOR' && userRole !== 'ADMIN' && userRole !== 'MODERATOR') return null;
+    }
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
 
@@ -532,6 +567,7 @@ export class ChatService {
               id: true,
               name: true,
               email: true,
+              username: true,
               avatarUrl: true,
             },
           },
@@ -561,5 +597,378 @@ export class ChatService {
       conversation: updatedConvo,
       systemMessage,
     };
+  }
+
+  async createGroupConversation(creatorId: string, name: string, avatarUrl: string, participantIds: string[]) {
+    const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+    const creatorUser = await this.prisma.user.findUnique({ where: { id: creatorId } });
+    const creatorName = creatorUser?.name || creatorUser?.username || 'Creator';
+
+    const convo = await this.prisma.conversation.create({
+      data: {
+        isGroup: true,
+        name,
+        avatarUrl,
+        inviteCode,
+        participants: {
+          create: [
+            { userId: creatorId, role: 'CREATOR' },
+            ...participantIds.map(id => ({ userId: id, role: 'MEMBER' }))
+          ]
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, username: true, avatarUrl: true }
+            }
+          }
+        }
+      }
+    });
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: creatorId,
+        conversationId: convo.id,
+        content: `${creatorName} created the group "${name}"`,
+        isSystem: true,
+      },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        }
+      }
+    });
+
+    return { conversation: convo, systemMessage };
+  }
+
+  async joinGroupByInviteCode(inviteCode: string, userId: string) {
+    const convo = await this.prisma.conversation.findUnique({
+      where: { inviteCode },
+      include: { participants: true }
+    });
+    if (!convo) return null;
+
+    const alreadyIn = convo.participants.some(p => p.userId === userId);
+    if (alreadyIn) return { conversation: convo, systemMessage: null };
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.name || user?.username || 'User';
+
+    const updatedConvo = await this.prisma.conversation.update({
+      where: { id: convo.id },
+      data: {
+        participants: {
+          create: { userId, role: 'MEMBER' }
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, username: true, avatarUrl: true } }
+          }
+        }
+      }
+    });
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: userId,
+        conversationId: convo.id,
+        content: `${userName} joined the group via invitation link`,
+        isSystem: true,
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    return { conversation: updatedConvo, systemMessage };
+  }
+
+  async leaveGroup(conversationId: string, userId: string) {
+    const participant = await this.prisma.conversationParticipant.findUnique({
+      where: { userId_conversationId: { userId, conversationId } },
+      include: { conversation: { include: { participants: true } } }
+    });
+    if (!participant) return null;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.name || user?.username || 'User';
+
+    await this.prisma.conversationParticipant.delete({
+      where: { id: participant.id }
+    });
+
+    const remainingParticipants = participant.conversation.participants.filter(p => p.userId !== userId);
+
+    let systemText = `${userName} left the group`;
+    let newCreatorId = null;
+
+    if (remainingParticipants.length === 0) {
+      await this.prisma.conversation.delete({ where: { id: conversationId } });
+      return { deleted: true, conversationId };
+    }
+
+    if (participant.role === 'CREATOR') {
+      const nextInLine = remainingParticipants.find(p => p.role === 'ADMIN') ||
+                         remainingParticipants.find(p => p.role === 'MODERATOR') ||
+                         remainingParticipants[0];
+      
+      await this.prisma.conversationParticipant.update({
+        where: { id: nextInLine.id },
+        data: { role: 'CREATOR' }
+      });
+      newCreatorId = nextInLine.userId;
+      const targetUser = await this.prisma.user.findUnique({ where: { id: nextInLine.userId } });
+      const targetName = targetUser?.name || targetUser?.username || 'User';
+      systemText += `, and ${targetName} was promoted to Creator`;
+    }
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: userId,
+        conversationId,
+        content: systemText,
+        isSystem: true,
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    const updatedConvo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, username: true, avatarUrl: true } }
+          }
+        }
+      }
+    });
+
+    return { conversation: updatedConvo, systemMessage, deleted: false, newCreatorId };
+  }
+
+  async updateGroupSettings(conversationId: string, userId: string, name?: string, avatarUrl?: string) {
+    const userRole = await this.getParticipantRole(conversationId, userId);
+    if (userRole !== 'CREATOR' && userRole !== 'ADMIN' && userRole !== 'MODERATOR') return null;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.name || user?.username || 'User';
+
+    const updateData: any = {};
+    let systemText = '';
+
+    if (name) {
+      updateData.name = name;
+      systemText = `${userName} changed the group name to "${name}"`;
+    }
+    if (avatarUrl) {
+      updateData.avatarUrl = avatarUrl;
+      if (systemText) {
+        systemText += ` and updated the group icon`;
+      } else {
+        systemText = `${userName} updated the group icon`;
+      }
+    }
+
+    const convo = await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: updateData,
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+          }
+        }
+      }
+    });
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: userId,
+        conversationId,
+        content: systemText,
+        isSystem: true
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    return { conversation: convo, systemMessage };
+  }
+
+  async updateParticipantRole(conversationId: string, userId: string, targetUserId: string, newRole: string) {
+    const userRole = await this.getParticipantRole(conversationId, userId);
+    if (userRole !== 'CREATOR') return null;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.name || user?.username || 'User';
+
+    const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    const targetName = targetUser?.name || targetUser?.username || 'User';
+
+    await this.prisma.conversationParticipant.updateMany({
+      where: { conversationId, userId: targetUserId },
+      data: { role: newRole }
+    });
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: userId,
+        conversationId,
+        content: `${userName} promoted ${targetName} to ${newRole.charAt(0).toUpperCase() + newRole.slice(1).toLowerCase()}`,
+        isSystem: true
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, username: true, avatarUrl: true } }
+          }
+        }
+      }
+    });
+
+    return { conversation: convo, systemMessage };
+  }
+
+  async addMembers(conversationId: string, userId: string, targetUserIds: string[]) {
+    const userRole = await this.getParticipantRole(conversationId, userId);
+    if (userRole !== 'CREATOR' && userRole !== 'ADMIN' && userRole !== 'MODERATOR') return null;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.name || user?.username || 'User';
+
+    const addedParticipantsData = targetUserIds.map(id => ({ userId: id, role: 'MEMBER' }));
+
+    await this.prisma.conversationParticipant.createMany({
+      data: addedParticipantsData.map(p => ({
+        conversationId,
+        userId: p.userId,
+        role: p.role
+      })),
+      skipDuplicates: true
+    });
+
+    const addedUsers = await this.prisma.user.findMany({
+      where: { id: { in: targetUserIds } }
+    });
+    const addedNames = addedUsers.map(u => u.name || u.username).join(', ');
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: userId,
+        conversationId,
+        content: `${userName} added ${addedNames} to the group`,
+        isSystem: true
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+          }
+        }
+      }
+    });
+
+    return { conversation: convo, systemMessage };
+  }
+
+  async removeMember(conversationId: string, userId: string, targetUserId: string) {
+    const userRole = await this.getParticipantRole(conversationId, userId);
+    const targetRole = await this.getParticipantRole(conversationId, targetUserId);
+    if (!userRole || !targetRole) return null;
+
+    let hasPermission = false;
+    if (userRole === 'CREATOR') {
+      hasPermission = true;
+    } else if (userRole === 'ADMIN' && targetRole !== 'CREATOR') {
+      hasPermission = true;
+    } else if (userRole === 'MODERATOR' && targetRole === 'MEMBER') {
+      hasPermission = true;
+    }
+
+    if (!hasPermission) return null;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.name || user?.username || 'User';
+
+    const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    const targetName = targetUser?.name || targetUser?.username || 'User';
+
+    await this.prisma.conversationParticipant.deleteMany({
+      where: { conversationId, userId: targetUserId }
+    });
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: userId,
+        conversationId,
+        content: `${userName} removed ${targetName} from the group`,
+        isSystem: true
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+          }
+        }
+      }
+    });
+
+    return { conversation: convo, systemMessage };
+  }
+
+  async deleteGroup(conversationId: string, userId: string) {
+    const userRole = await this.getParticipantRole(conversationId, userId);
+    if (userRole !== 'CREATOR' && userRole !== 'ADMIN') return null;
+
+    await this.prisma.messageReaction.deleteMany({
+      where: { message: { conversationId } }
+    });
+    await this.prisma.message.deleteMany({
+      where: { conversationId }
+    });
+    await this.prisma.conversationParticipant.deleteMany({
+      where: { conversationId }
+    });
+    return this.prisma.conversation.delete({
+      where: { id: conversationId }
+    });
+  }
+
+  private async getParticipantRole(conversationId: string, userId: string): Promise<string | null> {
+    const p = await this.prisma.conversationParticipant.findUnique({
+      where: { userId_conversationId: { userId, conversationId } }
+    });
+    return p ? p.role : null;
   }
 }

@@ -70,11 +70,12 @@ export class ChatController {
 
   @Get('conversation/:id/messages')
   async getMessages(
+    @Req() req,
     @Param('id') id: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string
   ) {
-    return this.chatService.getMessages(id, cursor, limit ? parseInt(limit, 10) : 20);
+    return this.chatService.getMessages(id, req.user.id, cursor, limit ? parseInt(limit, 10) : 20);
   }
 
   @Post('conversation/:id/read')
@@ -88,8 +89,16 @@ export class ChatController {
   }
 
   @Delete('message/:id')
-  async deleteMessage(@Req() req, @Param('id') id: string) {
-    return this.chatService.deleteMessage(id, req.user.id);
+  async deleteMessage(
+    @Req() req,
+    @Param('id') id: string,
+    @Query('mode') mode?: 'me' | 'everyone'
+  ) {
+    if (mode === 'everyone') {
+      return this.chatService.deleteMessageForEveryone(id, req.user.id);
+    } else {
+      return this.chatService.deleteMessageForMe(id, req.user.id);
+    }
   }
 
   @Patch('conversation/:id/settings')
@@ -118,5 +127,69 @@ export class ChatController {
       fileType: file.mimetype.split('/')[0].toUpperCase(), // IMAGE, VIDEO, APPLICATION etc.
       fileName: file.originalname,
     };
+  }
+
+  @Post('group')
+  async createGroup(
+    @Req() req,
+    @Body() body: { name: string; avatarUrl: string; participantIds: string[] }
+  ) {
+    return this.chatService.createGroupConversation(
+      req.user.id,
+      body.name,
+      body.avatarUrl || '',
+      body.participantIds || []
+    );
+  }
+
+  @Post('group/join/:inviteCode')
+  async joinGroupByInvite(@Req() req, @Param('inviteCode') inviteCode: string) {
+    return this.chatService.joinGroupByInviteCode(inviteCode, req.user.id);
+  }
+
+  @Post('conversation/:id/leave')
+  async leaveGroup(@Req() req, @Param('id') id: string) {
+    return this.chatService.leaveGroup(id, req.user.id);
+  }
+
+  @Patch('group/:id/settings')
+  async updateGroupSettings(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { name?: string; avatarUrl?: string }
+  ) {
+    return this.chatService.updateGroupSettings(id, req.user.id, body.name, body.avatarUrl);
+  }
+
+  @Patch('group/:id/role')
+  async updateRole(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { targetUserId: string; role: string }
+  ) {
+    return this.chatService.updateParticipantRole(id, req.user.id, body.targetUserId, body.role);
+  }
+
+  @Post('group/:id/members')
+  async addMembers(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { targetUserIds: string[] }
+  ) {
+    return this.chatService.addMembers(id, req.user.id, body.targetUserIds);
+  }
+
+  @Delete('group/:id/member/:targetUserId')
+  async removeMember(
+    @Req() req,
+    @Param('id') id: string,
+    @Param('targetUserId') targetUserId: string
+  ) {
+    return this.chatService.removeMember(id, req.user.id, targetUserId);
+  }
+
+  @Delete('group/:id')
+  async deleteGroup(@Req() req, @Param('id') id: string) {
+    return this.chatService.deleteGroup(id, req.user.id);
   }
 }
