@@ -575,6 +575,8 @@
   gap: 8px;
   z-index: 100;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  width: max-content;
+  max-width: 90vw;
 }
 
 .trayEmojiBtn {
@@ -588,6 +590,18 @@
 
 .trayEmojiBtn:hover {
   transform: scale(1.3);
+}
+
+@media (max-width: 480px) {
+  .emojiPickerTray {
+    padding: 4px 8px;
+    gap: 4px;
+    bottom: 70px;
+  }
+  .trayEmojiBtn {
+    font-size: 20px;
+    padding: 2px;
+  }
 }
 
 /* ─── Pinned Focused View Styles ─── */
@@ -710,6 +724,15 @@
   overflow: hidden;
 }
 
+@media (max-width: 480px) {
+  .customEmojiPickerWrapper {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 60px;
+  }
+}
+
 .groupLocalVideoTile {
   position: absolute !important;
   bottom: 100px; /* positioned above the bottom control bar */
@@ -818,4 +841,472 @@
   }
 }
 
+/* ─── Participants Modal Overlay ─── */
+.participantsModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.8);
+  backdrop-filter: blur(12px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
 
+.participantsModal {
+  background: rgba(22, 25, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 440px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.participantsHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.participantsTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closeModalBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.closeModalBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.participantsList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.participantRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.participantRow:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.participantInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.participantAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.participantMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.participantName {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.participantRoleBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.roleCreator {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.roleAdmin {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.roleMember {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.participantControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.muteIndicator {
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.activeIndicator {
+  color: #10b981;
+  display: flex;
+  align-items: center;
+}
+
+.adminMuteAllSection {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.adminMuteAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.adminMuteAllBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+
+.adminMuteAllBtn:active {
+  transform: translateY(0);
+}
+
+/* ─── +N Overflow Pills / Tiles ─── */
+.overflowAvatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.overflowAvatar:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent-primary);
+  transform: scale(1.06);
+}
+
+.overflowAvatarText {
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+}
+
+/* For video view overflow */
+.videoOverflowTile {
+  composes: groupVideoTile;
+  background: rgba(16, 18, 27, 0.8) !important;
+  backdrop-filter: blur(12px);
+  border: 2px dashed rgba(255, 255, 255, 0.15) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer !important;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.videoOverflowTile:hover {
+  border-color: var(--accent-primary) !important;
+  background: rgba(16, 18, 27, 0.9) !important;
+}
+
+.videoOverflowCount {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--accent-primary);
+  text-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.videoOverflowLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ═══ Participant Row Clickable ═══ */
+
+.participantRowClickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.participantRowClickable:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ═══ Hand/Foot Raised Row Highlight ═══ */
+
+.participantRowRaised {
+  background: rgba(250, 204, 21, 0.06) !important;
+  border-left: 3px solid rgba(250, 204, 21, 0.5);
+}
+
+/* ═══ Raise Indicator (next to name) ═══ */
+
+.raiseIndicator {
+  margin-left: 4px;
+  font-size: 14px;
+  animation: raiseWiggle 1.2s ease-in-out infinite;
+}
+
+@keyframes raiseWiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-10deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-4deg); }
+  75% { transform: rotate(0deg); }
+}
+
+/* ═══ Live Indicator (green dot on avatar) ═══ */
+
+.liveIndicator {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  font-size: 10px;
+  color: #22c55e;
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  animation: livePulse 2s infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ═══ Moderator Role Badge ═══ */
+
+.roleModerator {
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7;
+}
+
+/* ═══ Admin Per-User Mute/Unmute Button ═══ */
+
+.adminMuteUserBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 6px;
+}
+
+.adminMuteUserBtn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ═══ Thumbnail Overflow Tile (Focused view top row) ═══ */
+
+.thumbnailTileOverflow {
+  composes: thumbnailTile;
+  background: rgba(16, 18, 27, 0.85) !important;
+  backdrop-filter: blur(8px);
+  border: 2px dashed rgba(255, 255, 255, 0.15) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+}
+
+.thumbnailTileOverflow:hover {
+  border-color: var(--accent-primary) !important;
+  background: rgba(16, 18, 27, 0.95) !important;
+  transform: scale(1.03);
+}
+
+.thumbnailOverflowCount {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent-primary);
+  text-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.thumbnailOverflowLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 480px) {
+  .videoControls {
+    bottom: 20px !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    max-width: 95% !important;
+    box-sizing: border-box !important;
+  }
+  .videoBtn, .videoBtnEnd, .videoBtnActive, .videoBtnMuted {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  .videoControls svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+
+/* ═══ Confirmation Modal ═══ */
+.confirmModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 11000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.confirmModal {
+  background: rgba(22, 25, 35, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 380px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.confirmTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ef4444;
+  margin-bottom: 12px;
+}
+
+.confirmMessage {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirmCancelBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.confirmCancelBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.confirmSubmitBtn {
+  background: #ef4444;
+  border: none;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.confirmSubmitBtn:hover {
+  background: #dc2626;
+}

@@ -1008,7 +1008,7 @@ export class ChatService {
     });
   }
 
-  private async getParticipantRole(conversationId: string, userId: string): Promise<string | null> {
+  async getParticipantRole(conversationId: string, userId: string): Promise<string | null> {
     const p = await this.prisma.conversationParticipant.findUnique({
       where: { userId_conversationId: { userId, conversationId } }
     });

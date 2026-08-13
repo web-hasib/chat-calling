@@ -26,12 +26,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Track active group calls: conversationId -> { type, participants, startedAt, messages }
   private activeGroupCalls = new Map<string, { type: 'AUDIO' | 'VIDEO'; participants: Set<string>; startedAt: number; messages: any[] }>();
-  private readonly MAX_GROUP_CALL_PARTICIPANTS = 6;
+  private readonly MAX_GROUP_CALL_PARTICIPANTS: number;
 
   constructor(
     private jwtService: JwtService,
-    private chatService: ChatService
-  ) {}
+    private chatService: ChatService,
+  ) {
+    this.MAX_GROUP_CALL_PARTICIPANTS = parseInt(process.env.MAX_GROUP_CALL_PARTICIPANTS || '100', 10);
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -385,6 +387,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const initiator = conversation.participants.find((p: any) => p.userId === userId);
     const initiatorName = initiator?.user?.name || initiator?.nickname || 'Someone';
     const initiatorAvatar = initiator?.user?.avatarUrl;
+    const initiatorRole = initiator?.role || 'MEMBER';
 
     // Notify all other online participants
     for (const p of conversation.participants) {
@@ -397,6 +400,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           initiatorId: userId,
           initiatorName,
           initiatorAvatar,
+          initiatorRole,
           groupName: conversation.name || 'Group',
           startedAt,
         });
@@ -411,6 +415,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       conversationId: data.conversationId,
       type: data.type,
       participants: [userId],
+      myRole: initiatorRole,
       startedAt,
     });
   }
@@ -434,7 +439,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     if (groupCall.participants.size >= this.MAX_GROUP_CALL_PARTICIPANTS) {
-      client.emit('group-call-error', { reason: 'Group call is full (max 6 participants).' });
+      client.emit('group-call-error', { reason: `Group call is full (max ${this.MAX_GROUP_CALL_PARTICIPANTS} participants).` });
       return;
     }
 
@@ -443,6 +448,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const joinerParticipant = conversation?.participants.find((p: any) => p.userId === userId);
     const joinerName = joinerParticipant?.user?.name || joinerParticipant?.nickname || 'Someone';
     const joinerAvatar = joinerParticipant?.user?.avatarUrl;
+    const joinerRole = joinerParticipant?.role || 'MEMBER';
 
     // Get list of existing participants before adding new one
     const existingParticipantIds = Array.from(groupCall.participants);
@@ -457,6 +463,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId: pid,
         name: p?.user?.name || p?.nickname || 'User',
         avatarUrl: p?.user?.avatarUrl,
+        role: p?.role || 'MEMBER',
       };
     });
 
@@ -465,6 +472,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       conversationId: data.conversationId,
       type: groupCall.type,
       existingParticipants: existingDetails,
+      myRole: joinerRole,
       startedAt: groupCall.startedAt,
       messages: groupCall.messages,
     });
@@ -478,6 +486,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           userId,
           name: joinerName,
           avatarUrl: joinerAvatar,
+          role: joinerRole,
         });
       }
     }
@@ -687,7 +696,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('group-call-media-state')
   handleGroupCallMediaState(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; videoEnabled: boolean; audioEnabled: boolean }
+    @MessageBody() data: { conversationId: string; videoEnabled: boolean; audioEnabled: boolean; handRaised?: boolean; footRaised?: boolean }
   ) {
     const userId = client.data.userId;
     if (!userId) return;
@@ -704,6 +713,105 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           userId,
           videoEnabled: data.videoEnabled,
           audioEnabled: data.audioEnabled,
+          handRaised: data.handRaised,
+          footRaised: data.footRaised,
+          conversationId: data.conversationId,
+        });
+      }
+    }
+  }
+
+  /**
+   * Admin/Creator/Moderator force mutes a particular participant in a group call.
+   */
+  @SubscribeMessage('group-call-admin-mute-user')
+  async handleGroupCallAdminMuteUser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; targetUserId: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    // Check sender role
+    const role = await this.chatService.getParticipantRole(data.conversationId, userId);
+    if (role !== 'CREATOR' && role !== 'ADMIN' && role !== 'MODERATOR') {
+      client.emit('group-call-error', { reason: 'Only the creator, admin, or moderator can mute participants.' });
+      return;
+    }
+
+    // Emit 'group-call-force-muted' to the target user if they are in the call
+    if (groupCall.participants.has(data.targetUserId)) {
+      const targetSocketId = this.activeUsers.get(data.targetUserId);
+      if (targetSocketId) {
+        this.server.to(targetSocketId).emit('group-call-force-muted', {
+          conversationId: data.conversationId,
+        });
+      }
+    }
+  }
+
+  /**
+   * Admin/Creator/Moderator force unmutes a particular participant in a group call.
+   */
+  @SubscribeMessage('group-call-admin-unmute-user')
+  async handleGroupCallAdminUnmuteUser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; targetUserId: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    // Check sender role
+    const role = await this.chatService.getParticipantRole(data.conversationId, userId);
+    if (role !== 'CREATOR' && role !== 'ADMIN' && role !== 'MODERATOR') {
+      client.emit('group-call-error', { reason: 'Only the creator, admin, or moderator can unmute participants.' });
+      return;
+    }
+
+    // Emit 'group-call-force-unmuted' to the target user if they are in the call
+    if (groupCall.participants.has(data.targetUserId)) {
+      const targetSocketId = this.activeUsers.get(data.targetUserId);
+      if (targetSocketId) {
+        this.server.to(targetSocketId).emit('group-call-force-unmuted', {
+          conversationId: data.conversationId,
+        });
+      }
+    }
+  }
+
+  /**
+   * Admin/Creator force mutes all other participants in a group call.
+   */
+  @SubscribeMessage('group-call-admin-mute-all')
+  async handleGroupCallAdminMuteAll(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    // Check user role
+    const role = await this.chatService.getParticipantRole(data.conversationId, userId);
+    if (role !== 'CREATOR' && role !== 'ADMIN' && role !== 'MODERATOR') {
+      client.emit('group-call-error', { reason: 'Only the creator, admin, or moderator can mute all participants.' });
+      return;
+    }
+
+    // Emit 'group-call-force-muted' to other participants in the call
+    for (const peerId of groupCall.participants) {
+      if (peerId === userId) continue;
+      const peerSocketId = this.activeUsers.get(peerId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-force-muted', {
           conversationId: data.conversationId,
         });
       }

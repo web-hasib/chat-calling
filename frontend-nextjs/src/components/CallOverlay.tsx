@@ -68,6 +68,17 @@ const CallOverlay: React.FC = () => {
     triggerGroupCallEmoji,
     latestEmojiReaction,
     groupCallVideoStates,
+    groupMutedUserIds,
+    myGroupRole,
+    isHandRaised,
+    isFootRaised,
+    groupCallHandRaisedStates,
+    groupCallFootRaisedStates,
+    adminMuteAll,
+    toggleHandRaise,
+    toggleFootRaise,
+    adminMuteUser,
+    adminUnmuteUser,
   } = useCall();
 
   // ─── 1:1 Call Refs ───
@@ -85,6 +96,13 @@ const CallOverlay: React.FC = () => {
   const [chatInputText, setChatInputText] = useState('');
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [focusedUserId, setFocusedUserId] = useState<string | null>(null);
+  const [showAllParticipantsPanel, setShowAllParticipantsPanel] = useState(false);
+  const [muteConfirmConfig, setMuteConfirmConfig] = useState<{
+    isOpen: boolean;
+    type: 'all' | 'user';
+    targetUserId?: string;
+    targetUserName?: string;
+  }>({ isOpen: false, type: 'all' });
   const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Message popups (toast) logic
@@ -374,20 +392,18 @@ const CallOverlay: React.FC = () => {
     // Connected state — VIDEO/AUDIO layout
     if (isConnected) {
       const remoteEntries = Array.from(groupRemoteStreams.entries());
+      const totalParticipants = remoteEntries.length + 1;
       
       // On mobile, the local preview floats, so grid only displays remote participants.
       const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-      const activeGridParticipants = isMobile ? remoteEntries.length : remoteEntries.length + 1;
+      const gridParticipantsCount = totalParticipants > 4 ? 4 : totalParticipants;
+      const activeGridParticipants = isMobile ? (gridParticipantsCount - 1) : gridParticipantsCount;
       
       const gridClass = activeGridParticipants <= 1
         ? styles.groupGrid2 // 1 participant or 2 layout
         : activeGridParticipants <= 2
         ? styles.groupGrid2
-        : activeGridParticipants <= 4
-        ? styles.groupGrid4
-        : styles.groupGrid6;
-
-      const totalParticipants = remoteEntries.length + 1;
+        : styles.groupGrid4;
 
       return (
         <div className={styles.groupCallContainer}>
@@ -420,52 +436,90 @@ const CallOverlay: React.FC = () => {
                         {/* Thumbnail Row for other remote participants (rendered at top) */}
                         {otherRemoteParticipants.length > 0 && (
                           <div className={styles.thumbnailStrip}>
-                            {otherRemoteParticipants.map(([userId, stream]) => {
-                              const participant = activeGroupCall.participants.find(p => p.userId === userId);
-                              const hasVideo = groupCallVideoStates[userId] !== false;
+                            {(() => {
+                              const maxThumbnails = 4;
+                              const hasOverflow = otherRemoteParticipants.length > maxThumbnails;
+                              const toRender = hasOverflow 
+                                ? otherRemoteParticipants.slice(0, maxThumbnails - 1) 
+                                : otherRemoteParticipants;
+                              const overflowCount = otherRemoteParticipants.length - toRender.length;
 
                               return (
-                                <div 
-                                  key={userId} 
-                                  className={styles.thumbnailTile}
-                                  onClick={() => setFocusedUserId(userId)}
-                                  title={`Focus ${participant?.name || 'Participant'}`}
-                                >
-                                  {hasVideo ? (
-                                    <video
+                                <>
+                                  {toRender.map(([userId, stream]) => {
+                                    const participant = activeGroupCall.participants.find(p => p.userId === userId);
+                                    const hasVideo = groupCallVideoStates[userId] !== false;
+
+                                    return (
+                                      <div 
+                                        key={userId} 
+                                        className={styles.thumbnailTile}
+                                        onClick={() => setFocusedUserId(userId)}
+                                        title={`Focus ${participant?.name || 'Participant'}`}
+                                      >
+                                        {hasVideo ? (
+                                          <video
+                                            ref={(el) => {
+                                              if (el) {
+                                                groupRemoteVideoRefs.current.set(userId, el);
+                                                if (el.srcObject !== stream) el.srcObject = stream;
+                                              }
+                                            }}
+                                            autoPlay
+                                            playsInline
+                                            className={styles.thumbnailVideoEl}
+                                          />
+                                        ) : (
+                                          <div className={styles.thumbnailPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(userId) }}>
+                                            <img
+                                              src={participant?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant?.name || userId}`}
+                                              alt={participant?.name || 'Participant'}
+                                              className={styles.thumbnailPlaceholderAvatar}
+                                            />
+                                          </div>
+                                        )}
+                                        <div className={styles.thumbnailLabel}>
+                                          {participant?.name || 'Participant'}
+                                        </div>
+                                        <audio
+                                          ref={(el) => {
+                                            if (el && el.srcObject !== stream) el.srcObject = stream;
+                                          }}
+                                          autoPlay
+                                          playsInline
+                                          style={{ display: 'none' }}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+
+                                  {/* Background audio tracks to keep overflow participants audible */}
+                                  {hasOverflow && otherRemoteParticipants.slice(maxThumbnails - 1).map(([userId, stream]) => (
+                                    <audio
+                                      key={`audio-bg-thumb-${userId}`}
                                       ref={(el) => {
-                                        if (el) {
-                                          groupRemoteVideoRefs.current.set(userId, el);
-                                          if (el.srcObject !== stream) el.srcObject = stream;
-                                        }
+                                        if (el && el.srcObject !== stream) el.srcObject = stream;
                                       }}
                                       autoPlay
                                       playsInline
-                                      className={styles.thumbnailVideoEl}
+                                      style={{ display: 'none' }}
                                     />
-                                  ) : (
-                                    <div className={styles.thumbnailPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(userId) }}>
-                                      <img
-                                        src={participant?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant?.name || userId}`}
-                                        alt={participant?.name || 'Participant'}
-                                        className={styles.thumbnailPlaceholderAvatar}
-                                      />
+                                  ))}
+
+                                  {/* + others Overflow tile */}
+                                  {hasOverflow && (
+                                    <div 
+                                      className={styles.thumbnailTileOverflow}
+                                      onClick={() => setShowAllParticipantsPanel(true)}
+                                      title="View all participants"
+                                    >
+                                      <span className={styles.thumbnailOverflowCount}>+{overflowCount}</span>
+                                      <span className={styles.thumbnailOverflowLabel}>others</span>
                                     </div>
                                   )}
-                                  <div className={styles.thumbnailLabel}>
-                                    {participant?.name || 'Participant'}
-                                  </div>
-                                  <audio
-                                    ref={(el) => {
-                                      if (el && el.srcObject !== stream) el.srcObject = stream;
-                                    }}
-                                    autoPlay
-                                    playsInline
-                                    style={{ display: 'none' }}
-                                  />
-                                </div>
+                                </>
                               );
-                            })}
+                            })()}
                           </div>
                         )}
 
@@ -584,97 +638,210 @@ const CallOverlay: React.FC = () => {
                         <div className={styles.groupTileLabel}>You {isGroupMuted && '🔇'}</div>
                       </div>
 
-                      {/* Remote Tiles */}
-                      {remoteEntries.map(([userId, stream]) => {
-                        const participant = activeGroupCall.participants.find(p => p.userId === userId);
-                        const hasVideo = groupCallVideoStates[userId] !== false;
+                      {/* Remote Tiles (Capped at 2 if total participants > 4) */}
+                      {(() => {
+                        const maxRemoteVisible = totalParticipants > 4 ? 3 : remoteEntries.length;
+                        const visibleRemote = remoteEntries.slice(0, maxRemoteVisible);
+                        const overflowRemote = remoteEntries.slice(maxRemoteVisible);
+                        const overflowCount = remoteEntries.length - maxRemoteVisible;
 
                         return (
-                          <div 
-                            key={userId} 
-                            className={styles.groupVideoTile}
-                            onClick={() => setFocusedUserId(userId)}
-                            title={`Click to focus ${participant?.name || 'Participant'}`}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            {hasVideo ? (
-                              <video
+                          <>
+                            {visibleRemote.map(([userId, stream]) => {
+                              const participant = activeGroupCall.participants.find(p => p.userId === userId);
+                              const hasVideo = groupCallVideoStates[userId] !== false;
+                              const isUserMuted = groupMutedUserIds.has(userId);
+
+                              return (
+                                <div 
+                                  key={userId} 
+                                  className={styles.groupVideoTile}
+                                  onClick={() => setFocusedUserId(userId)}
+                                  title={`Click to focus ${participant?.name || 'Participant'}`}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  {hasVideo ? (
+                                    <video
+                                      ref={(el) => {
+                                        if (el) {
+                                          groupRemoteVideoRefs.current.set(userId, el);
+                                          if (el.srcObject !== stream) el.srcObject = stream;
+                                        }
+                                      }}
+                                      autoPlay
+                                      playsInline
+                                      className={styles.groupVideoEl}
+                                    />
+                                  ) : (
+                                    <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(userId) }}>
+                                      <img
+                                        src={participant?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant?.name || userId}`}
+                                        alt={participant?.name || 'Participant'}
+                                        className={styles.groupPlaceholderAvatar}
+                                      />
+                                    </div>
+                                  )}
+                                  <div className={styles.groupTileLabel}>
+                                    {participant?.name || 'Participant'} {isUserMuted && '🔇'}
+                                  </div>
+                                  <audio
+                                    ref={(el) => {
+                                      if (el && el.srcObject !== stream) el.srcObject = stream;
+                                    }}
+                                    autoPlay
+                                    playsInline
+                                    style={{ display: 'none' }}
+                                  />
+                                </div>
+                              );
+                            })}
+
+                            {/* Background audio tracks to keep overflow video participants audible */}
+                            {overflowRemote.map(([userId, stream]) => (
+                              <audio
+                                key={`audio-bg-vid-${userId}`}
                                 ref={(el) => {
-                                  if (el) {
-                                    groupRemoteVideoRefs.current.set(userId, el);
-                                    if (el.srcObject !== stream) el.srcObject = stream;
-                                  }
+                                  if (el && el.srcObject !== stream) el.srcObject = stream;
                                 }}
                                 autoPlay
                                 playsInline
-                                className={styles.groupVideoEl}
+                                style={{ display: 'none' }}
                               />
-                            ) : (
-                              <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(userId) }}>
-                                <img
-                                  src={participant?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant?.name || userId}`}
-                                  alt={participant?.name || 'Participant'}
-                                  className={styles.groupPlaceholderAvatar}
-                                />
+                            ))}
+
+                            {/* +N Overflow tile */}
+                            {overflowCount > 0 && (
+                              <div 
+                                className={styles.videoOverflowTile}
+                                onClick={() => setShowAllParticipantsPanel(true)}
+                                title="View all participants"
+                              >
+                                <span className={styles.videoOverflowCount}>+{overflowCount}</span>
+                                <span className={styles.videoOverflowLabel}>others</span>
                               </div>
                             )}
-                            <div className={styles.groupTileLabel}>
-                              {participant?.name || 'Participant'}
-                            </div>
-                            <audio
-                              ref={(el) => {
-                                if (el && el.srcObject !== stream) el.srcObject = stream;
-                              }}
-                              autoPlay
-                              playsInline
-                              style={{ display: 'none' }}
-                            />
-                          </div>
+                          </>
                         );
-                      })}
+                      })()}
                     </div>
                   );
                 })()
               ) : (
                 /* Audio calling centered layout */
                 <div className={styles.groupAudioCenter}>
-                  <div className={styles.groupAvatarRow}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <img
-                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=me`}
-                        alt="You"
-                        className={styles.avatar}
-                        style={{ width: 68, height: 68 }}
+                  {/* Background audio tracks to ensure overflow participants are audible */}
+                  {activeGroupCall.participants.map((p) => {
+                    const hasStream = groupRemoteStreams.has(p.userId);
+                    if (!hasStream) return null;
+                    return (
+                      <audio
+                        key={`audio-bg-${p.userId}`}
+                        ref={(el) => {
+                          const stream = groupRemoteStreams.get(p.userId);
+                          if (el && stream && el.srcObject !== stream) el.srcObject = stream;
+                        }}
+                        autoPlay
+                        playsInline
+                        style={{ display: 'none' }}
                       />
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>You {isGroupMuted && '🔇'}</span>
-                    </div>
-                    {activeGroupCall.participants.map((p) => {
-                      const hasStream = groupRemoteStreams.has(p.userId);
-                      return (
-                        <div key={p.userId} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <img
-                            src={p.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${p.name}`}
-                            alt={p.name}
-                            className={styles.avatar}
-                            style={{ width: 68, height: 68, opacity: hasStream ? 1 : 0.4 }}
-                          />
-                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', maxWidth: '72px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                            {p.name}
+                    );
+                  })}
+
+                  <div className={styles.groupAvatarRow}>
+                    {/* Self avatar */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=me`}
+                          alt="You"
+                          className={styles.avatar}
+                          style={{ width: 68, height: 68 }}
+                        />
+                        {isGroupMuted && (
+                          <span style={{ position: 'absolute', bottom: 0, right: 0, background: 'rgba(239,68,68,0.95)', borderRadius: '50%', padding: '3px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <MicOff size={10} />
                           </span>
-                          {hasStream && (
-                            <audio
-                              ref={(el) => {
-                                const stream = groupRemoteStreams.get(p.userId);
-                                if (el && stream && el.srcObject !== stream) el.srcObject = stream;
-                              }}
-                              autoPlay
-                              playsInline
-                              style={{ display: 'none' }}
-                            />
+                        )}
+                        {isHandRaised && (
+                          <span style={{ position: 'absolute', top: -6, right: -6, fontSize: '16px', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>🖐️</span>
+                        )}
+                        {isFootRaised && (
+                          <span style={{ position: 'absolute', top: -6, left: -6, fontSize: '16px', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>🦶</span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>You</span>
+                    </div>
+
+                    {/* Remote avatars */}
+                    {(() => {
+                      const sortedParticipants = [...(activeGroupCall.participants || [])].sort((a, b) => {
+                        const aHand = groupCallHandRaisedStates[a.userId] || false;
+                        const bHand = groupCallHandRaisedStates[b.userId] || false;
+                        const aFoot = groupCallFootRaisedStates[a.userId] || false;
+                        const bFoot = groupCallFootRaisedStates[b.userId] || false;
+                        const aRaised = aHand || aFoot;
+                        const bRaised = bHand || bFoot;
+
+                        if (aRaised && !bRaised) return -1;
+                        if (!aRaised && bRaised) return 1;
+                        return 0;
+                      });
+                      const maxVisible = 4;
+                      const visibleParticipants = sortedParticipants.slice(0, maxVisible);
+                      const overflowCount = sortedParticipants.length - maxVisible;
+
+                      return (
+                        <>
+                          {visibleParticipants.map((p) => {
+                            const hasStream = groupRemoteStreams.has(p.userId);
+                            const isUserMuted = groupMutedUserIds.has(p.userId);
+                            const pHandRaised = groupCallHandRaisedStates[p.userId] || false;
+                            const pFootRaised = groupCallFootRaisedStates[p.userId] || false;
+                            return (
+                              <div 
+                                key={p.userId} 
+                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                                onClick={() => setFocusedUserId(p.userId)}
+                              >
+                                <div style={{ position: 'relative' }}>
+                                  <img
+                                    src={p.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${p.name}`}
+                                    alt={p.name}
+                                    className={styles.avatar}
+                                    style={{ width: 68, height: 68, opacity: hasStream ? 1 : 0.4 }}
+                                  />
+                                  {isUserMuted && (
+                                    <span style={{ position: 'absolute', bottom: 0, right: 0, background: 'rgba(239,68,68,0.95)', borderRadius: '50%', padding: '3px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <MicOff size={10} />
+                                    </span>
+                                  )}
+                                  {pHandRaised && (
+                                    <span style={{ position: 'absolute', top: -6, right: -6, fontSize: '16px', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>🖐️</span>
+                                  )}
+                                  {pFootRaised && (
+                                    <span style={{ position: 'absolute', top: -6, left: -6, fontSize: '16px', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>🦶</span>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', maxWidth: '72px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                  {p.name}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          
+                          {overflowCount > 0 && (
+                            <div 
+                              className={styles.overflowAvatar}
+                              onClick={() => setShowAllParticipantsPanel(true)}
+                              title="View all participants"
+                            >
+                              <span className={styles.overflowAvatarText}>+{overflowCount}</span>
+                              <span style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>others</span>
+                            </div>
                           )}
-                        </div>
+                        </>
                       );
-                    })}
+                    })()}
                   </div>
                   <h2 className={styles.name} style={{ color: 'white', marginTop: '16px' }}>{activeGroupCall.groupName}</h2>
                   <span className={styles.status}>Connected (Group Voice Call)</span>
@@ -751,6 +918,37 @@ const CallOverlay: React.FC = () => {
               title={isGroupMuted ? 'Unmute' : 'Mute'}
             >
               {isGroupMuted ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
+
+            {(myGroupRole === 'CREATOR' || myGroupRole === 'ADMIN' || myGroupRole === 'MODERATOR') && (
+              <button
+                className={styles.videoBtn}
+                onClick={() => setMuteConfirmConfig({ isOpen: true, type: 'all' })}
+                title="Mute Everyone"
+                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}
+              >
+                <MicOff size={20} />
+              </button>
+            )}
+
+            {/* Hand Raise */}
+            <button
+              className={isHandRaised ? styles.videoBtnActive : styles.videoBtn}
+              onClick={toggleHandRaise}
+              title={isHandRaised ? 'Lower Hand' : 'Raise Hand'}
+              style={isHandRaised ? { backgroundColor: 'rgba(250, 204, 21, 0.2)', color: '#facc15' } : {}}
+            >
+              <span style={{ fontSize: '18px' }}>🖐️</span>
+            </button>
+
+            {/* Foot Raise */}
+            <button
+              className={isFootRaised ? styles.videoBtnActive : styles.videoBtn}
+              onClick={toggleFootRaise}
+              title={isFootRaised ? 'Lower Foot' : 'Raise Foot'}
+              style={isFootRaised ? { backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#a855f7' } : {}}
+            >
+              <span style={{ fontSize: '18px' }}>🦶</span>
             </button>
 
             {isVideoCall && (
@@ -842,6 +1040,7 @@ const CallOverlay: React.FC = () => {
             </button>
           </div>
           {/* Toast notifications */}
+          {/* Toast notifications */}
           {toasts.length > 0 && (
             <div className={styles.toastContainer}>
               {toasts.map(toast => (
@@ -860,6 +1059,220 @@ const CallOverlay: React.FC = () => {
                   <div className={styles.toastBody}>{toast.message}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Participants Modal / Scrollable list */}
+          {showAllParticipantsPanel && (
+            <div 
+              className={styles.participantsModalOverlay}
+              onClick={() => setShowAllParticipantsPanel(false)}
+            >
+              <div 
+                className={styles.participantsModal}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className={styles.participantsHeader}>
+                  <h3 className={styles.participantsTitle}>
+                    <Users size={20} style={{ color: 'var(--accent-primary)' }} />
+                    <span>Participants ({totalParticipants})</span>
+                  </h3>
+                  <button 
+                    className={styles.closeModalBtn}
+                    onClick={() => setShowAllParticipantsPanel(false)}
+                  >
+                    <CloseIcon size={18} />
+                  </button>
+                </div>
+                
+                <div className={styles.participantsList}>
+                  {/* Self Row */}
+                  <div 
+                    className={`${styles.participantRow} ${styles.participantRowClickable}`}
+                    onClick={() => {
+                      setFocusedUserId(null);
+                      setShowAllParticipantsPanel(false);
+                    }}
+                  >
+                    <div className={styles.participantInfo}>
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=me`}
+                          alt="You"
+                          className={styles.participantAvatar}
+                        />
+                        <span className={styles.liveIndicator} title="Live">●</span>
+                      </div>
+                      <div className={styles.participantMeta}>
+                        <span className={styles.participantName}>
+                          You
+                          {isHandRaised && <span className={styles.raiseIndicator} title="Hand Raised">🖐️</span>}
+                          {isFootRaised && <span className={styles.raiseIndicator} title="Foot Raised">🦶</span>}
+                        </span>
+                        <span className={`${styles.participantRoleBadge} ${
+                          myGroupRole === 'CREATOR' ? styles.roleCreator : myGroupRole === 'ADMIN' ? styles.roleAdmin : myGroupRole === 'MODERATOR' ? styles.roleModerator : styles.roleMember
+                        }`}>
+                          {myGroupRole || 'MEMBER'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={styles.participantControls}>
+                      {isGroupMuted ? (
+                        <span className={styles.muteIndicator} title="Muted">
+                          <MicOff size={15} />
+                        </span>
+                      ) : (
+                        <span className={styles.activeIndicator} title="Speaking">
+                          <Mic size={15} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Remote Rows — sorted: hand-raised first, then live connected, then others */}
+                  {[...(activeGroupCall.participants || [])].sort((a, b) => {
+                    const aHandRaised = groupCallHandRaisedStates[a.userId] || false;
+                    const bHandRaised = groupCallHandRaisedStates[b.userId] || false;
+                    const aFootRaised = groupCallFootRaisedStates[a.userId] || false;
+                    const bFootRaised = groupCallFootRaisedStates[b.userId] || false;
+                    const aRaised = aHandRaised || aFootRaised;
+                    const bRaised = bHandRaised || bFootRaised;
+                    const aLive = groupRemoteStreams.has(a.userId);
+                    const bLive = groupRemoteStreams.has(b.userId);
+
+                    if (aRaised && !bRaised) return -1;
+                    if (!aRaised && bRaised) return 1;
+                    if (aLive && !bLive) return -1;
+                    if (!aLive && bLive) return 1;
+                    return 0;
+                  }).map((p) => {
+                    const isMuted = groupMutedUserIds.has(p.userId);
+                    const hasStream = groupRemoteStreams.has(p.userId);
+                    const pHandRaised = groupCallHandRaisedStates[p.userId] || false;
+                    const pFootRaised = groupCallFootRaisedStates[p.userId] || false;
+                    const isAdmin = myGroupRole === 'CREATOR' || myGroupRole === 'ADMIN' || myGroupRole === 'MODERATOR';
+                    
+                    return (
+                      <div 
+                        key={p.userId} 
+                        className={`${styles.participantRow} ${styles.participantRowClickable} ${pHandRaised ? styles.participantRowRaised : ''}`}
+                        onClick={() => {
+                          setFocusedUserId(p.userId);
+                          setShowAllParticipantsPanel(false);
+                        }}
+                      >
+                        <div className={styles.participantInfo}>
+                          <div style={{ position: 'relative' }}>
+                            <img 
+                              src={p.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${p.name}`}
+                              alt={p.name}
+                              className={styles.participantAvatar}
+                            />
+                            {hasStream && <span className={styles.liveIndicator} title="Live">●</span>}
+                          </div>
+                          <div className={styles.participantMeta}>
+                            <span className={styles.participantName}>
+                              {p.name}
+                              {pHandRaised && <span className={styles.raiseIndicator} title="Hand Raised">🖐️</span>}
+                              {pFootRaised && <span className={styles.raiseIndicator} title="Foot Raised">🦶</span>}
+                            </span>
+                            <span className={`${styles.participantRoleBadge} ${
+                              p.role === 'CREATOR' ? styles.roleCreator : p.role === 'ADMIN' ? styles.roleAdmin : p.role === 'MODERATOR' ? styles.roleModerator : styles.roleMember
+                            }`}>
+                              {p.role || 'MEMBER'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={styles.participantControls}>
+                          {!hasStream ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Connecting...</span>
+                          ) : (
+                            <>
+                              {isMuted ? (
+                                <span className={styles.muteIndicator} title="Muted">
+                                  <MicOff size={15} />
+                                </span>
+                              ) : (
+                                <span className={styles.activeIndicator} title="Active">
+                                  <Mic size={15} />
+                                </span>
+                              )}
+                              {isAdmin && (
+                                <button
+                                  className={styles.adminMuteUserBtn}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isMuted) {
+                                      adminUnmuteUser(p.userId);
+                                    } else {
+                                      setMuteConfirmConfig({
+                                        isOpen: true,
+                                        type: 'user',
+                                        targetUserId: p.userId,
+                                        targetUserName: p.name,
+                                      });
+                                    }
+                                  }}
+                                  title={isMuted ? 'Unmute User' : 'Mute User'}
+                                >
+                                  {isMuted ? <Mic size={13} /> : <MicOff size={13} />}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {(myGroupRole === 'CREATOR' || myGroupRole === 'ADMIN' || myGroupRole === 'MODERATOR') && (
+                  <div className={styles.adminMuteAllSection}>
+                    <button 
+                      className={styles.adminMuteAllBtn}
+                      onClick={() => {
+                        setMuteConfirmConfig({ isOpen: true, type: 'all' });
+                      }}
+                    >
+                      <MicOff size={16} />
+                      <span>Mute Everyone</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {muteConfirmConfig.isOpen && (
+            <div className={styles.confirmModalOverlay} onClick={() => setMuteConfirmConfig(prev => ({ ...prev, isOpen: false }))}>
+              <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                <h4 className={styles.confirmTitle}>Confirm Mute Action</h4>
+                <p className={styles.confirmMessage}>
+                  {muteConfirmConfig.type === 'all'
+                    ? 'Are you sure you want to mute all participants in this meeting?'
+                    : `Are you sure you want to mute ${muteConfirmConfig.targetUserName}?`}
+                </p>
+                <div className={styles.confirmActions}>
+                  <button
+                    className={styles.confirmCancelBtn}
+                    onClick={() => setMuteConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className={styles.confirmSubmitBtn}
+                    onClick={() => {
+                      if (muteConfirmConfig.type === 'all') {
+                        adminMuteAll();
+                      } else if (muteConfirmConfig.type === 'user' && muteConfirmConfig.targetUserId) {
+                        adminMuteUser(muteConfirmConfig.targetUserId);
+                      }
+                      setMuteConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                    }}
+                  >
+                    Confirm Mute
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -22,6 +22,7 @@ interface GroupCallParticipant {
   userId: string;
   name: string;
   avatarUrl?: string;
+  role?: string;
 }
 
 interface ActiveGroupCall {
@@ -87,6 +88,12 @@ interface CallContextType {
   groupCallMessages: GroupChatMessage[];
   latestEmojiReaction: GroupCallEmojiReaction | null;
   groupCallVideoStates: Record<string, boolean>;
+  groupMutedUserIds: Set<string>;
+  myGroupRole: string | null;
+  isHandRaised: boolean;
+  isFootRaised: boolean;
+  groupCallHandRaisedStates: Record<string, boolean>;
+  groupCallFootRaisedStates: Record<string, boolean>;
   startGroupCall: (conversationId: string, groupName: string, type: 'AUDIO' | 'VIDEO') => void;
   joinGroupCall: (convoIdToJoin?: string, convoTypeToJoin?: 'AUDIO' | 'VIDEO') => Promise<void>;
   rejectGroupCall: () => void;
@@ -96,6 +103,11 @@ interface CallContextType {
   toggleGroupScreenShare: () => Promise<void>;
   sendGroupCallMessage: (message: string) => void;
   triggerGroupCallEmoji: (emoji: string) => void;
+  adminMuteAll: () => void;
+  toggleHandRaise: () => void;
+  toggleFootRaise: () => void;
+  adminMuteUser: (userId: string) => void;
+  adminUnmuteUser: (userId: string) => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -284,6 +296,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentConvoId, setCurrentConvoId] = useState<string | null>(null);
   const [groupCallStatus, setGroupCallStatus] = useState<GroupCallStatus | null>(null);
 
+  const [myGroupRole, setMyGroupRole] = useState<string | null>(null);
+  const [groupMutedUserIds, setGroupMutedUserIds] = useState<Set<string>>(new Set());
+
+  const [isHandRaised, setIsHandRaised] = useState<boolean>(false);
+  const [isFootRaised, setIsFootRaised] = useState<boolean>(false);
+  const [groupCallHandRaisedStates, setGroupCallHandRaisedStates] = useState<Record<string, boolean>>({});
+  const [groupCallFootRaisedStates, setGroupCallFootRaisedStates] = useState<Record<string, boolean>>({});
+
   // Map of userId -> RTCPeerConnection for group mesh
   const groupPeerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const groupScreenTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -303,6 +323,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     groupLocalStreamRef.current = groupLocalStream;
   }, [groupLocalStream]);
+
+  const isHandRaisedRef = useRef(false);
+  const isFootRaisedRef = useRef(false);
+
+  useEffect(() => {
+    isHandRaisedRef.current = isHandRaised;
+  }, [isHandRaised]);
+
+  useEffect(() => {
+    isFootRaisedRef.current = isFootRaised;
+  }, [isFootRaised]);
 
   // Synchronized timer hook based on startedAt timestamp
   useEffect(() => {
@@ -796,6 +827,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setGroupCallMessages([]);
     setLatestEmojiReaction(null);
     setGroupCallVideoStates({});
+    setMyGroupRole(null);
+    setGroupMutedUserIds(new Set());
+    setIsHandRaised(false);
+    setIsFootRaised(false);
+    setGroupCallHandRaisedStates({});
+    setGroupCallFootRaisedStates({});
   }, []);
 
   // ─── Group Call Socket Listeners ───
@@ -842,16 +879,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       conversationId: string;
       type: 'AUDIO' | 'VIDEO';
       participants: string[];
+      myRole?: string;
       startedAt: number;
     }) => {
       setActiveGroupCall(prev => prev ? { ...prev, status: 'connected', startedAt: data.startedAt } : null);
       setGroupCallStartedAt(data.startedAt);
+      if (data.myRole) {
+        setMyGroupRole(data.myRole);
+      }
     });
 
     socket.on('group-call-joined', async (data: {
       conversationId: string;
       type: 'AUDIO' | 'VIDEO';
       existingParticipants: GroupCallParticipant[];
+      myRole?: string;
       startedAt: number;
       messages?: GroupChatMessage[];
     }) => {
@@ -870,6 +912,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         participants: data.existingParticipants,
         startedAt: data.startedAt,
       } : null);
+
+      if (data.myRole) {
+        setMyGroupRole(data.myRole);
+      }
 
       setGroupCallStartedAt(data.startedAt);
 
@@ -903,6 +949,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userId: string;
       name: string;
       avatarUrl?: string;
+      role?: string;
     }) => {
       setActiveGroupCall(prev => {
         if (!prev) return null;
@@ -913,6 +960,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userId: data.userId,
             name: data.name,
             avatarUrl: data.avatarUrl,
+            role: data.role,
           }],
         };
       });
@@ -1006,11 +1054,72 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Handle camera and audio status changes of other peers
-    socket.on('group-call-media-state-received', (data: { userId: string; videoEnabled: boolean }) => {
+    socket.on('group-call-media-state-received', (data: { userId: string; videoEnabled: boolean; audioEnabled: boolean; handRaised?: boolean; footRaised?: boolean }) => {
       setGroupCallVideoStates(prev => ({
         ...prev,
         [data.userId]: data.videoEnabled,
       }));
+      setGroupMutedUserIds(prev => {
+        const next = new Set(prev);
+        if (data.audioEnabled === false) {
+          next.add(data.userId);
+        } else {
+          next.delete(data.userId);
+        }
+        return next;
+      });
+      if (data.handRaised !== undefined) {
+        setGroupCallHandRaisedStates(prev => ({
+          ...prev,
+          [data.userId]: data.handRaised || false,
+        }));
+      }
+      if (data.footRaised !== undefined) {
+        setGroupCallFootRaisedStates(prev => ({
+          ...prev,
+          [data.userId]: data.footRaised || false,
+        }));
+      }
+    });
+
+    // Handle force mute by admin/creator
+    socket.on('group-call-force-muted', (data: { conversationId: string }) => {
+      const stream = groupLocalStreamRef.current;
+      if (stream) {
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack && audioTrack.enabled) {
+          audioTrack.enabled = false;
+          setIsGroupMuted(true);
+          const videoTrack = stream.getVideoTracks()[0];
+          socket.emit('group-call-media-state', {
+            conversationId: data.conversationId,
+            videoEnabled: videoTrack ? videoTrack.enabled : false,
+            audioEnabled: false,
+            handRaised: isHandRaisedRef.current,
+            footRaised: isFootRaisedRef.current,
+          });
+        }
+      }
+    });
+
+    // Handle force unmute by admin/creator
+    socket.on('group-call-force-unmuted', (data: { conversationId: string }) => {
+      const stream = groupLocalStreamRef.current;
+      if (stream) {
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack && !audioTrack.enabled) {
+          audioTrack.enabled = true;
+          setIsGroupMuted(false);
+          const videoTrack = stream.getVideoTracks()[0];
+          socket.emit('group-call-media-state', {
+            conversationId: data.conversationId,
+            videoEnabled: videoTrack ? videoTrack.enabled : false,
+            audioEnabled: true,
+            handRaised: isHandRaisedRef.current,
+            footRaised: isFootRaisedRef.current,
+          });
+        }
+      }
     });
 
     return () => {
@@ -1027,6 +1136,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('group-call-chat-message-received');
       socket.off('group-call-emoji-received');
       socket.off('group-call-media-state-received');
+      socket.off('group-call-force-muted');
+      socket.off('group-call-force-unmuted');
     };
   }, [socket, createGroupPeerConnection, removeGroupPeer, cleanupGroupCall]);
 
@@ -1122,8 +1233,19 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
       setIsGroupMuted(!audioTrack.enabled);
+
+      if (socket && activeGroupCallRef.current) {
+        const videoTrack = stream.getVideoTracks()[0];
+        socket.emit('group-call-media-state', {
+          conversationId: activeGroupCallRef.current.conversationId,
+          videoEnabled: videoTrack ? videoTrack.enabled : false,
+          audioEnabled: audioTrack.enabled,
+          handRaised: isHandRaisedRef.current,
+          footRaised: isFootRaisedRef.current,
+        });
+      }
     }
-  }, []);
+  }, [socket]);
 
   const toggleGroupVideo = useCallback(() => {
     const stream = groupLocalStreamRef.current;
@@ -1138,6 +1260,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           conversationId: activeGroupCallRef.current.conversationId,
           videoEnabled: videoTrack.enabled,
           audioEnabled: !isGroupMuted,
+          handRaised: isHandRaisedRef.current,
+          footRaised: isFootRaisedRef.current,
         });
       }
     }
@@ -1232,6 +1356,62 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [activeGroupCall, currentConvoId, socket, user]);
 
+  const adminMuteAll = useCallback(() => {
+    const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
+    if (!activeCallConvoId || !socket) return;
+    socket.emit('group-call-admin-mute-all', { conversationId: activeCallConvoId });
+  }, [activeGroupCall, currentConvoId, socket]);
+
+  const toggleHandRaise = useCallback(() => {
+    setIsHandRaised(prev => {
+      const nextVal = !prev;
+      if (socket && activeGroupCallRef.current) {
+        const stream = groupLocalStreamRef.current;
+        const videoTrack = stream?.getVideoTracks()[0];
+        const audioTrack = stream?.getAudioTracks()[0];
+        socket.emit('group-call-media-state', {
+          conversationId: activeGroupCallRef.current.conversationId,
+          videoEnabled: videoTrack ? videoTrack.enabled : false,
+          audioEnabled: audioTrack ? audioTrack.enabled : true,
+          handRaised: nextVal,
+          footRaised: isFootRaisedRef.current,
+        });
+      }
+      return nextVal;
+    });
+  }, [socket]);
+
+  const toggleFootRaise = useCallback(() => {
+    setIsFootRaised(prev => {
+      const nextVal = !prev;
+      if (socket && activeGroupCallRef.current) {
+        const stream = groupLocalStreamRef.current;
+        const videoTrack = stream?.getVideoTracks()[0];
+        const audioTrack = stream?.getAudioTracks()[0];
+        socket.emit('group-call-media-state', {
+          conversationId: activeGroupCallRef.current.conversationId,
+          videoEnabled: videoTrack ? videoTrack.enabled : false,
+          audioEnabled: audioTrack ? audioTrack.enabled : true,
+          handRaised: isHandRaisedRef.current,
+          footRaised: nextVal,
+        });
+      }
+      return nextVal;
+    });
+  }, [socket]);
+
+  const adminMuteUser = useCallback((targetUserId: string) => {
+    const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
+    if (!activeCallConvoId || !socket) return;
+    socket.emit('group-call-admin-mute-user', { conversationId: activeCallConvoId, targetUserId });
+  }, [activeGroupCall, currentConvoId, socket]);
+
+  const adminUnmuteUser = useCallback((targetUserId: string) => {
+    const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
+    if (!activeCallConvoId || !socket) return;
+    socket.emit('group-call-admin-unmute-user', { conversationId: activeCallConvoId, targetUserId });
+  }, [activeGroupCall, currentConvoId, socket]);
+
   // ═══════════════════════════════════════════════════════════
   // PROVIDER
   // ═══════════════════════════════════════════════════════════
@@ -1269,6 +1449,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         groupCallMessages,
         latestEmojiReaction,
         groupCallVideoStates,
+        groupMutedUserIds,
+        myGroupRole,
+        isHandRaised,
+        isFootRaised,
+        groupCallHandRaisedStates,
+        groupCallFootRaisedStates,
         startGroupCall,
         joinGroupCall,
         rejectGroupCall,
@@ -1278,6 +1464,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleGroupScreenShare,
         sendGroupCallMessage,
         triggerGroupCallEmoji,
+        adminMuteAll,
+        toggleHandRaise,
+        toggleFootRaise,
+        adminMuteUser,
+        adminUnmuteUser,
       }}
     >
       {children}
