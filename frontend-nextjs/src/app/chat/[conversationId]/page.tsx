@@ -17,7 +17,7 @@ import { Lightbox } from '../components/Lightbox';
 export default function ActiveChatPage() {
   const { user, token } = useAuth();
   const { onlineUsers } = useSocket();
-  const { startCall } = useCall();
+  const { startCall, startGroupCall, setCurrentConvoId, groupCallStatus, joinGroupCall } = useCall();
   const router = useRouter();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -85,6 +85,14 @@ export default function ActiveChatPage() {
     setTheme(savedTheme);
   }, []);
 
+  // Sync current conversation ID to CallContext
+  useEffect(() => {
+    setCurrentConvoId(activeConvo?.id || null);
+    return () => {
+      setCurrentConvoId(null);
+    };
+  }, [activeConvo?.id, setCurrentConvoId]);
+
   // Listen to clicks outside picker elements
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -117,9 +125,19 @@ export default function ActiveChatPage() {
   // Handlers
   const handleCall = (type: 'AUDIO' | 'VIDEO') => {
     if (!activeConvo || !user) return;
-    const recipient = activeConvo.participants.find((p: any) => p.userId !== user.id)?.user;
-    if (!recipient) return;
-    startCall(recipient.id, recipient.name, recipient.avatarUrl, type, activeConvo.id);
+    if (activeConvo.isGroup) {
+      // Group call
+      if (groupCallStatus?.active) {
+        joinGroupCall(activeConvo.id, type);
+      } else {
+        startGroupCall(activeConvo.id, activeConvo.name || 'Group', type);
+      }
+    } else {
+      // 1:1 call
+      const recipient = activeConvo.participants.find((p: any) => p.userId !== user.id)?.user;
+      if (!recipient) return;
+      startCall(recipient.id, recipient.name, recipient.avatarUrl, type, activeConvo.id);
+    }
   };
 
   const handleBackToSidebar = () => {

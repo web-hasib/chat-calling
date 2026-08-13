@@ -195,3 +195,627 @@
   background-color: var(--accent-danger);
   animation: pulse-ring 1s infinite;
 }
+
+/* ─── Group Call Styles ─── */
+
+.groupCallContainer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100vh;
+  background: #0f1115;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.groupMainBody {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 100px); /* leave room for controls at bottom */
+  position: relative;
+  overflow: hidden;
+}
+
+.groupMediaArea {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.groupAudioCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  padding: 40px;
+}
+
+.groupBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  color: #a5b4fc;
+  letter-spacing: 0.5px;
+}
+
+.groupAvatarRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  max-width: 80%;
+}
+
+.groupVideoGrid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.groupGrid2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+@media (max-width: 768px) {
+  .groupGrid2 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+.groupGrid4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.groupGrid6 {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+@media (max-width: 768px) {
+  .groupGrid6 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+  }
+}
+
+.groupVideoTile {
+  position: relative;
+  background: #151821;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 768px) {
+  .groupLocalVideoTile {
+    position: absolute !important;
+    bottom: 80px;
+    right: 16px;
+    width: 100px !important;
+    height: 140px !important;
+    z-index: 90;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    cursor: grab;
+    touch-action: none;
+  }
+  .groupLocalVideoTile:active {
+    cursor: grabbing;
+  }
+}
+
+.groupVideoEl {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.groupVideoPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #2f3136; /* Discord style solid dark background */
+}
+
+.groupPlaceholderAvatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  transition: transform 0.3s ease;
+}
+
+.groupTileLabel {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  padding: 4px 12px;
+  background: rgba(10, 12, 16, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.participantCount {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ─── Ephemeral meeting features ─── */
+
+.emojiContainer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.flyingEmoji {
+  position: absolute;
+  bottom: -50px;
+  font-size: 40px;
+  animation: flyUp 2.5s ease-in-out forwards;
+}
+
+@keyframes flyUp {
+  0% {
+    bottom: -50px;
+    opacity: 0;
+    transform: scale(0.5) translateX(0);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  50% {
+    transform: scale(1) translateX(30px);
+  }
+  100% {
+    bottom: 85%;
+    opacity: 0;
+    transform: scale(0.8) translateX(-30px);
+  }
+}
+
+.chatPanel {
+  width: 320px;
+  height: 100%;
+  background: #141722;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+  animation: slideLeft 0.3s ease;
+}
+
+@media (max-width: 600px) {
+  .chatPanel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.chatPanelHeader {
+  padding: 16px;
+  border-b: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.closeChatBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeChatBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.chatPanelMessages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chatEmptyState {
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  text-align: center;
+  margin-top: 40px;
+  padding: 0 20px;
+  line-height: 1.5;
+}
+
+.chatBubble {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.chatBubbleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.chatBubbleSender {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a5b4fc;
+}
+
+.chatBubbleTime {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+}
+
+.chatBubbleText {
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.chatPanelInputRow {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 8px;
+}
+
+.chatPanelInput {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: white;
+  font-size: 13px;
+  outline: none;
+}
+
+.chatPanelInput:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.chatSendBtn {
+  background: #4f46e5;
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chatSendBtn:hover {
+  background: #6366f1;
+}
+
+.emojiPickerTray {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 17, 21, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  padding: 6px 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.trayEmojiBtn {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform 0.1s;
+  padding: 4px;
+}
+
+.trayEmojiBtn:hover {
+  transform: scale(1.3);
+}
+
+/* ─── Pinned Focused View Styles ─── */
+
+.focusedSpeakerLayout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.focusedVideoWrapper {
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 130px); /* leave room for thumbnail row */
+  position: relative;
+  background: #000;
+}
+
+.focusedVideoTile {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.focusedVideoEl {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.thumbnailStrip {
+  height: 120px;
+  width: 100%;
+  background: rgba(15, 17, 21, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* border at the bottom since it renders at top */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  z-index: 10;
+}
+
+.thumbnailTile {
+  width: 140px;
+  height: 90px;
+  min-width: 140px;
+  background: #1e2230;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbnailTile:hover {
+  transform: scale(1.05);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.thumbnailVideoEl {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnailPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #2f3136; /* Discord style solid dark background */
+}
+
+.thumbnailPlaceholderAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.thumbnailLabel {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 1px 6px;
+  background: rgba(10, 12, 16, 0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 4px;
+  font-size: 10px;
+  color: white;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customEmojiPickerWrapper {
+  position: absolute;
+  bottom: 50px;
+  right: -50px;
+  z-index: 120;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.groupLocalVideoTile {
+  position: absolute !important;
+  bottom: 100px; /* positioned above the bottom control bar */
+  right: 20px;
+  width: 150px !important;
+  height: 110px !important;
+  z-index: 150 !important; /* float on top of remote videos and controls */
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  touch-action: none;
+}
+
+.groupLocalVideoTile:active {
+  cursor: grabbing;
+}
+
+/* ─── Toast Notifications ─── */
+.toastContainer {
+  position: absolute;
+  top: 130px; /* Below the top thumbnail strip if present */
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+  max-width: 320px;
+  width: calc(100% - 40px);
+}
+
+.toastCard {
+  background: rgba(32, 35, 41, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s;
+}
+
+.toastCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.toastHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.toastSender {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+
+.toastDismissBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.toastBody {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ─── Mobile floating chat panel ─── */
+@media (max-width: 768px) {
+  .chatPanel {
+    position: absolute !important;
+    top: 10px;
+    right: 10px;
+    bottom: 80px;
+    width: calc(100% - 20px) !important;
+    max-width: 360px;
+    height: auto !important;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    z-index: 1000 !important;
+    background: rgba(16, 18, 27, 0.96) !important;
+    backdrop-filter: blur(16px);
+  }
+}
+
+

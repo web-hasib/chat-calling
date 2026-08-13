@@ -466,6 +466,49 @@ export class ChatService {
     return { log, systemMessage };
   }
 
+  async logGroupCall(
+    initiatorId: string,
+    conversationId: string,
+    type: 'AUDIO' | 'VIDEO',
+    status: 'COMPLETED' | 'MISSED',
+    duration?: number
+  ) {
+    const formatDuration = (sec: number) => {
+      const mins = Math.floor(sec / 60);
+      const secs = sec % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const label = type === 'VIDEO' ? 'Group Video Call' : 'Group Voice Call';
+    let text = '';
+    if (status === 'COMPLETED') {
+      text = `${label} - Ended (${formatDuration(duration || 0)})`;
+    } else {
+      text = `${label} - Missed`;
+    }
+
+    const systemMessage = await this.prisma.message.create({
+      data: {
+        senderId: initiatorId,
+        conversationId,
+        content: text,
+        isSystem: true,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    return { systemMessage };
+  }
+
   async getConversation(conversationId: string) {
     return this.prisma.conversation.findUnique({
       where: { id: conversationId },

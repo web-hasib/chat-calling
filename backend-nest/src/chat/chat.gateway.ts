@@ -24,6 +24,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Track active socket connections by User ID
   private activeUsers = new Map<string, string>(); // userId -> socketId
 
+  // Track active group calls: conversationId -> { type, participants, startedAt, messages }
+  private activeGroupCalls = new Map<string, { type: 'AUDIO' | 'VIDEO'; participants: Set<string>; startedAt: number; messages: any[] }>();
+  private readonly MAX_GROUP_CALL_PARTICIPANTS = 6;
+
   constructor(
     private jwtService: JwtService,
     private chatService: ChatService
@@ -59,6 +63,40 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (userId) {
       this.activeUsers.delete(userId);
       this.server.emit('user-status', { userId, status: 'offline' });
+
+      // Cleanup group calls: remove user from any active group call and notify peers
+      for (const [convoId, groupCall] of this.activeGroupCalls.entries()) {
+        if (groupCall.participants.has(userId)) {
+          groupCall.participants.delete(userId);
+          
+          // Notify remaining participants
+          for (const peerId of groupCall.participants) {
+            const peerSocketId = this.activeUsers.get(peerId);
+            if (peerSocketId) {
+              this.server.to(peerSocketId).emit('group-call-user-left', {
+                userId,
+                conversationId: convoId,
+              });
+            }
+          }
+
+          // If call is now empty or only 1 person left, end it completely
+          if (groupCall.participants.size <= 1) {
+            for (const lastPeerId of groupCall.participants) {
+              const lastSocket = this.activeUsers.get(lastPeerId);
+              if (lastSocket) {
+                this.server.to(lastSocket).emit('group-call-ended', {
+                  conversationId: convoId,
+                });
+              }
+            }
+            this.activeGroupCalls.delete(convoId);
+          }
+
+          // Broadcast updated call status to all participants in conversation
+          this.broadcastGroupCallStatus(convoId);
+        }
+      }
     }
   }
 
@@ -282,5 +320,393 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server.emit('new-message-notification', res.systemMessage);
       }
     });
+  }
+
+  // --- Group Call Signaling Events ---
+
+  private async broadcastGroupCallStatus(conversationId: string) {
+    const groupCall = this.activeGroupCalls.get(conversationId);
+    const conversation = await this.chatService.getConversation(conversationId);
+    if (!conversation) return;
+
+    const data = groupCall && groupCall.participants.size > 0 ? {
+      active: true,
+      type: groupCall.type,
+      startedAt: groupCall.startedAt,
+      participantsCount: groupCall.participants.size,
+    } : {
+      active: false,
+    };
+
+    // Broadcast call status to all participants of this conversation
+    for (const p of conversation.participants) {
+      const peerSocketId = this.activeUsers.get(p.userId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit(`group-call-status-${conversationId}`, data);
+      }
+    }
+  }
+
+  /**
+   * Initiator starts a group call. Server creates the group call room
+   * and sends incoming notifications to all online participants.
+   */
+  @SubscribeMessage('group-call-initiate')
+  async handleGroupCallInitiate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; type: 'AUDIO' | 'VIDEO' }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    // Prevent duplicate group calls on the same conversation
+    if (this.activeGroupCalls.has(data.conversationId)) {
+      client.emit('group-call-error', { reason: 'A group call is already active in this conversation.' });
+      return;
+    }
+
+    // Look up conversation participants
+    const conversation = await this.chatService.getConversation(data.conversationId);
+    if (!conversation || !conversation.isGroup) {
+      client.emit('group-call-error', { reason: 'Invalid group conversation.' });
+      return;
+    }
+
+    // Create group call room with initiator and current timestamp
+    const startedAt = Date.now();
+    this.activeGroupCalls.set(data.conversationId, {
+      type: data.type,
+      participants: new Set<string>([userId]),
+      startedAt,
+      messages: [],
+    });
+
+    // Fetch initiator details
+    const initiator = conversation.participants.find((p: any) => p.userId === userId);
+    const initiatorName = initiator?.user?.name || initiator?.nickname || 'Someone';
+    const initiatorAvatar = initiator?.user?.avatarUrl;
+
+    // Notify all other online participants
+    for (const p of conversation.participants) {
+      if (p.userId === userId) continue;
+      const peerSocketId = this.activeUsers.get(p.userId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-incoming', {
+          conversationId: data.conversationId,
+          type: data.type,
+          initiatorId: userId,
+          initiatorName,
+          initiatorAvatar,
+          groupName: conversation.name || 'Group',
+          startedAt,
+        });
+      }
+    }
+
+    // Broadcast call status to everyone in the conversation
+    this.broadcastGroupCallStatus(data.conversationId);
+
+    // Confirm to initiator
+    client.emit('group-call-started', {
+      conversationId: data.conversationId,
+      type: data.type,
+      participants: [userId],
+      startedAt,
+    });
+  }
+
+  /**
+   * A participant accepts and joins the group call.
+   * Server adds them and notifies existing participants to establish peer connections.
+   */
+  @SubscribeMessage('group-call-join')
+  async handleGroupCallJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; type: 'AUDIO' | 'VIDEO' }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) {
+      client.emit('group-call-error', { reason: 'No active group call found.' });
+      return;
+    }
+
+    if (groupCall.participants.size >= this.MAX_GROUP_CALL_PARTICIPANTS) {
+      client.emit('group-call-error', { reason: 'Group call is full (max 6 participants).' });
+      return;
+    }
+
+    // Fetch joiner details
+    const conversation = await this.chatService.getConversation(data.conversationId);
+    const joinerParticipant = conversation?.participants.find((p: any) => p.userId === userId);
+    const joinerName = joinerParticipant?.user?.name || joinerParticipant?.nickname || 'Someone';
+    const joinerAvatar = joinerParticipant?.user?.avatarUrl;
+
+    // Get list of existing participants before adding new one
+    const existingParticipantIds = Array.from(groupCall.participants);
+
+    // Add joiner
+    groupCall.participants.add(userId);
+
+    // Build participant details for the joiner (so they know who's already in)
+    const existingDetails = existingParticipantIds.map(pid => {
+      const p = conversation?.participants.find((cp: any) => cp.userId === pid);
+      return {
+        userId: pid,
+        name: p?.user?.name || p?.nickname || 'User',
+        avatarUrl: p?.user?.avatarUrl,
+      };
+    });
+
+    // Tell the joiner about existing participants (they need to create offers to each)
+    client.emit('group-call-joined', {
+      conversationId: data.conversationId,
+      type: groupCall.type,
+      existingParticipants: existingDetails,
+      startedAt: groupCall.startedAt,
+      messages: groupCall.messages,
+    });
+
+    // Notify existing participants that a new user joined
+    for (const peerId of existingParticipantIds) {
+      const peerSocketId = this.activeUsers.get(peerId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-user-joined', {
+          conversationId: data.conversationId,
+          userId,
+          name: joinerName,
+          avatarUrl: joinerAvatar,
+        });
+      }
+    }
+
+    // Broadcast updated status
+    this.broadcastGroupCallStatus(data.conversationId);
+  }
+
+  /**
+   * Relay SDP offer between specific peers within a group call.
+   */
+  @SubscribeMessage('group-call-offer')
+  handleGroupCallOffer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { to: string; offer: any; conversationId: string }
+  ) {
+    const fromUserId = client.data.userId;
+    const targetSocketId = this.activeUsers.get(data.to);
+    if (targetSocketId) {
+      this.server.to(targetSocketId).emit('group-call-offer', {
+        from: fromUserId,
+        offer: data.offer,
+        conversationId: data.conversationId,
+      });
+    }
+  }
+
+  /**
+   * Relay SDP answer between specific peers within a group call.
+   */
+  @SubscribeMessage('group-call-answer')
+  handleGroupCallAnswer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { to: string; answer: any; conversationId: string }
+  ) {
+    const fromUserId = client.data.userId;
+    const targetSocketId = this.activeUsers.get(data.to);
+    if (targetSocketId) {
+      this.server.to(targetSocketId).emit('group-call-answer', {
+        from: fromUserId,
+        answer: data.answer,
+        conversationId: data.conversationId,
+      });
+    }
+  }
+
+  /**
+   * Relay ICE candidates between specific peers within a group call.
+   */
+  @SubscribeMessage('group-ice-candidate')
+  handleGroupIceCandidate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { to: string; candidate: any; conversationId: string }
+  ) {
+    const fromUserId = client.data.userId;
+    const targetSocketId = this.activeUsers.get(data.to);
+    if (targetSocketId) {
+      this.server.to(targetSocketId).emit('group-ice-candidate', {
+        from: fromUserId,
+        candidate: data.candidate,
+        conversationId: data.conversationId,
+      });
+    }
+  }
+
+  /**
+   * A participant leaves the group call. Close only their connections.
+   * Call ends only if the last person leaves.
+   */
+  @SubscribeMessage('group-call-leave')
+  async handleGroupCallLeave(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; duration?: number }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    groupCall.participants.delete(userId);
+
+    // Notify remaining participants
+    for (const peerId of groupCall.participants) {
+      const peerSocketId = this.activeUsers.get(peerId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-user-left', {
+          userId,
+          conversationId: data.conversationId,
+        });
+      }
+    }
+
+    // If call is now empty or only 1 person left, end it completely
+    if (groupCall.participants.size <= 1) {
+      for (const lastPeerId of groupCall.participants) {
+        const lastSocket = this.activeUsers.get(lastPeerId);
+        if (lastSocket) {
+          this.server.to(lastSocket).emit('group-call-ended', {
+            conversationId: data.conversationId,
+          });
+        }
+      }
+      this.activeGroupCalls.delete(data.conversationId);
+
+      // Log the completed group call
+      await this.chatService.logGroupCall(userId, data.conversationId, groupCall.type, 'COMPLETED', data.duration || 0);
+    }
+
+    // Broadcast updated status
+    this.broadcastGroupCallStatus(data.conversationId);
+  }
+
+  /**
+   * A participant declines the group call invitation.
+   */
+  @SubscribeMessage('group-call-reject')
+  handleGroupCallReject(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string }
+  ) {
+    // Just a decline/reject.
+  }
+
+  /**
+   * Returns the current list of participants in an active group call.
+   */
+  @SubscribeMessage('group-call-status')
+  handleGroupCallStatus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string }
+  ) {
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    client.emit('group-call-status-response', {
+      conversationId: data.conversationId,
+      active: groupCall && groupCall.participants.size > 0,
+      type: groupCall?.type,
+      startedAt: groupCall?.startedAt,
+      participants: groupCall ? Array.from(groupCall.participants) : [],
+    });
+  }
+
+  /**
+   * Relays an ephemeral emoji reaction to all users in the group call.
+   */
+  @SubscribeMessage('group-call-emoji')
+  handleGroupCallEmoji(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; emoji: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    // Relay to other participants
+    for (const peerId of groupCall.participants) {
+      if (peerId === userId) continue;
+      const peerSocketId = this.activeUsers.get(peerId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-emoji-received', {
+          userId,
+          emoji: data.emoji,
+          conversationId: data.conversationId,
+        });
+      }
+    }
+  }
+
+  /**
+   * Relays an ephemeral chat message to all users in the group call.
+   */
+  @SubscribeMessage('group-call-chat-message')
+  async handleGroupCallChatMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; message: string; senderName: string }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    const msg = {
+      senderId: userId,
+      senderName: data.senderName,
+      message: data.message,
+      timestamp: Date.now(),
+      conversationId: data.conversationId,
+    };
+    groupCall.messages.push(msg);
+
+    // Relay to other participants
+    for (const peerId of groupCall.participants) {
+      if (peerId === userId) continue;
+      const peerSocketId = this.activeUsers.get(peerId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-chat-message-received', msg);
+      }
+    }
+  }
+
+  /**
+   * Relays participant media states (video/audio enabled) to peers.
+   */
+  @SubscribeMessage('group-call-media-state')
+  handleGroupCallMediaState(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; videoEnabled: boolean; audioEnabled: boolean }
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    const groupCall = this.activeGroupCalls.get(data.conversationId);
+    if (!groupCall) return;
+
+    // Relay to other participants
+    for (const peerId of groupCall.participants) {
+      if (peerId === userId) continue;
+      const peerSocketId = this.activeUsers.get(peerId);
+      if (peerSocketId) {
+        this.server.to(peerSocketId).emit('group-call-media-state-received', {
+          userId,
+          videoEnabled: data.videoEnabled,
+          audioEnabled: data.audioEnabled,
+          conversationId: data.conversationId,
+        });
+      }
+    }
   }
 }
