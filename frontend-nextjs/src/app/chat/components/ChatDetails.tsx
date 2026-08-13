@@ -193,11 +193,11 @@ export function ChatDetails({
   const renderRoleIcon = (role: string) => {
     switch (role) {
       case 'CREATOR':
-        return <ShieldAlert size={14} className="text-red-500" title="Creator" />;
+        return <span title="Creator"><ShieldAlert size={14} className="text-red-500" /></span>;
       case 'ADMIN':
-        return <ShieldCheck size={14} className="text-blue-500" title="Admin" />;
+        return <span title="Admin"><ShieldCheck size={14} className="text-blue-500" /></span>;
       case 'MODERATOR':
-        return <Shield size={14} className="text-green-500" title="Moderator" />;
+        return <span title="Moderator"><Shield size={14} className="text-green-500" /></span>;
       default:
         return null;
     }
