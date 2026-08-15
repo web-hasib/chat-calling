@@ -1552,4 +1552,11 @@
     max-width: calc(100vw - 24px) !important;
     z-index: 15 !important;
   }
+
+  .localVideo {
+    width: 90px !important;
+    height: 130px !important;
+    bottom: 120px !important;
+    right: 12px !important;
+  }
 }
