@@ -202,6 +202,11 @@ export default function ActiveChatPage() {
     );
   }
 
+  const handleSendRichEmail = (subject: string, htmlContent: string) => {
+    const richPayload = `[RICH_EMAIL]${JSON.stringify({ subject, html: htmlContent })}`;
+    handleSend(richPayload, () => {}, stopTyping);
+  };
+
   return (
     <>
       {/* Header */}
@@ -275,7 +280,9 @@ export default function ActiveChatPage() {
             onEmojiClick={(d) => { setInputText((p) => p + d.emoji); textInputRef.current?.focus(); }}
             onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
             onCancelReply={() => setReplyingTo(null)}
+            onSendRichEmail={handleSendRichEmail}
             participants={activeConvo?.participants || []}
+            recipientName={recipientName}
           />
         </div>
 

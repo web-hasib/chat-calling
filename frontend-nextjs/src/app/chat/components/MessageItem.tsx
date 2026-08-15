@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import {
-  Smile, Reply, Trash2, X, ExternalLink, Check, CheckCheck, Loader2, Plus,
+  Smile, Reply, Trash2, X, ExternalLink, Check, CheckCheck, Loader2, Plus, Mail, Copy,
 } from 'lucide-react';
 
 interface MessageItemProps {
@@ -54,21 +54,23 @@ export function MessageItem({
   }
 
   const isDeleteOpen = deleteConfirmMsgId === msg.id;
+  const isPickerOpen = activeReactionPickerId === msg.id || activeCustomEmojiMsgId === msg.id || isDeleteOpen;
 
   return (
     <div
       id={`msg-${msg.id}`}
-      className={`group relative flex flex-col max-w-[75%] min-w-[60px] w-fit mb-1 ${isSentByMe ? 'self-end items-end' : 'self-start items-start'} ${isPrepended ? 'animate-in fade-in-0 duration-350 slide-in-from-top-1.5' : ''}`}
+      className={`group relative flex flex-col max-w-[75%] min-w-[60px] w-fit mb-1.5 pt-1 ${isSentByMe ? 'self-end items-end' : 'self-start items-start'} ${isPrepended ? 'animate-in fade-in-0 duration-350 slide-in-from-top-1.5' : ''}`}
     >
-      {/* ── Hover Action Bar with Popover delete confirm ── */}
+      {/* ── Hover Action Bar with invisible hover bridge ── */}
       <div
         className={`
-          absolute -top-8 z-20
+          absolute -top-7 z-20
           flex items-center gap-0.5
-          bg-[var(--bg-secondary)] border border-[var(--border-color)]
-          rounded-xl px-1 py-0.5 shadow-lg
-          transition-all duration-150
-          ${isDeleteOpen
+          bg-[#161b26] border border-[#2e374a]
+          rounded-xl px-1.5 py-0.5 shadow-xl
+          transition-opacity duration-150
+          before:absolute before:-bottom-3 before:left-0 before:right-0 before:h-4 before:content-['']
+          ${isPickerOpen
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
           }
@@ -266,6 +268,29 @@ export function MessageItem({
               {msg.content && <div style={{ marginTop: '6px' }}>{msg.content}</div>}
             </div>
           )
+        ) : msg.content?.startsWith('[RICH_EMAIL]') ? (
+          (() => {
+            let richEmailData: { subject: string; html: string } | null = null;
+            try {
+              richEmailData = JSON.parse(msg.content.slice(12));
+            } catch {
+              richEmailData = null;
+            }
+            if (!richEmailData) {
+              return (
+                <div className={`px-4 py-3 rounded-[16px] text-sm ${isSentByMe ? 'bg-[var(--accent-primary)] text-white' : 'bg-[var(--bg-tertiary)]'}`}>
+                  {msg.content}
+                </div>
+              );
+            }
+            return (
+              <RichEmailCard
+                subject={richEmailData.subject}
+                html={richEmailData.html}
+                isSentByMe={isSentByMe}
+              />
+            );
+          })()
         ) : (
           <div
             className={`px-4 py-3 rounded-[16px] text-sm leading-normal break-words overflow-wrap-anywhere whitespace-pre-wrap relative ${isSentByMe ? 'bg-[var(--accent-primary)] text-white rounded-br-[4px]' : 'bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-[4px]'}`}
@@ -370,10 +395,152 @@ export function MessageItem({
 }
 
 /* ─────────────────────────────────────────────
+   Rich Email Message Card with Copy functionality
+───────────────────────────────────────────── */
+function RichEmailCard({
+  subject,
+  html,
+  isSentByMe,
+}: {
+  subject: string;
+  html: string;
+  isSentByMe: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // 1. Try DOM Selection copy (100% native CF_HTML support in Windows/Mac clipboard)
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'fixed';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.top = '-9999px';
+    tempContainer.style.opacity = '0';
+    tempContainer.style.pointerEvents = 'none';
+
+    tempContainer.innerHTML = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <h2 style="font-size: 18px; font-weight: bold; color: #111827; margin-bottom: 8px;">${subject}</h2>
+        <div>${html}</div>
+      </div>
+    `;
+
+    document.body.appendChild(tempContainer);
+
+    const range = document.createRange();
+    range.selectNodeContents(tempContainer);
+    const selection = window.getSelection();
+    let execSuccess = false;
+
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      try {
+        execSuccess = document.execCommand('copy');
+      } catch {
+        execSuccess = false;
+      }
+      selection.removeAllRanges();
+    }
+
+    document.body.removeChild(tempContainer);
+
+    if (execSuccess) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      return;
+    }
+
+    // 2. Fallback: Modern ClipboardItem API
+    const fullHtml = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;"><h2 style="font-size: 18px; font-weight: bold;">${subject}</h2><div>${html}</div></div>`;
+    const tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    const plainText = `Subject: ${subject}\n\n${tmp.innerText || tmp.textContent || ''}`;
+
+    try {
+      if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        const htmlBlob = new Blob([fullHtml], { type: 'text/html' });
+        const textBlob = new Blob([plainText], { type: 'text/plain' });
+        const item = new ClipboardItem({
+          'text/html': htmlBlob,
+          'text/plain': textBlob,
+        });
+
+        navigator.clipboard.write([item]).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {
+          navigator.clipboard.writeText(plainText).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          });
+        });
+      } else {
+        navigator.clipboard.writeText(plainText).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      }
+    } catch {
+      navigator.clipboard.writeText(plainText).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
+
+  return (
+    <div
+      className={`p-4 rounded-2xl max-w-md w-full border border-white/10 shadow-xl overflow-hidden flex flex-col gap-2.5 ${
+        isSentByMe
+          ? 'bg-[#1a2336] text-white rounded-br-sm'
+          : 'bg-[#161b26] text-[#f3f4f6] rounded-bl-sm'
+      }`}
+    >
+      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center">
+            <Mail size={13} />
+          </div>
+          <span className="font-semibold text-xs text-purple-300">Formatted Email</span>
+        </div>
+
+        {/* Remote / Local Copy Button */}
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white border-none cursor-pointer transition-colors"
+          title="Copy Email Content"
+        >
+          {copied ? (
+            <>
+              <Check size={12} className="text-emerald-400" />
+              <span className="text-emerald-400">Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="text-sm font-bold text-white tracking-wide">{subject}</div>
+      <div
+        className="tiptap-rendered-content text-xs leading-relaxed max-w-none text-gray-200 border-t border-white/5 pt-2"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Zero-dependency portal popover for delete confirm.
    Renders into document.body via ReactDOM.createPortal
    so it's never clipped by scroll containers or the
-   viewport top edge. Auto-flips top↔bottom.
+   viewport top edge. Auto-flips top↔bottom and clamps horizontally.
 ───────────────────────────────────────────── */
 interface DeleteConfirmPopoverProps {
   open: boolean;
@@ -396,15 +563,24 @@ function DeleteConfirmPopover({
   const recalc = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const popoverH = 48; // estimated height
+    const popoverH = 48;
+    const popoverW = isSentByMe ? 250 : 190;
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+
     const spaceAbove = rect.top;
     const shouldFlip = spaceAbove < popoverH + 12;
     setFlipToBottom(shouldFlip);
+
+    let rawLeft = rect.left + rect.width / 2;
+    const minLeft = popoverW / 2 + 16;
+    const maxLeft = screenWidth - popoverW / 2 - 16;
+    const clampedLeft = Math.max(minLeft, Math.min(maxLeft, rawLeft));
+
     setCoords({
       top: shouldFlip ? rect.bottom + 8 : rect.top - popoverH - 8,
-      left: rect.left + rect.width / 2,
+      left: clampedLeft,
     });
-  }, []);
+  }, [isSentByMe]);
 
   useEffect(() => {
     if (open) {
@@ -451,18 +627,18 @@ function DeleteConfirmPopover({
             top: coords.top,
             left: coords.left,
             transform: 'translateX(-50%)',
-            zIndex: 9999,
+            zIndex: 99999,
           }}
-          className="flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+          className="flex items-center gap-2 px-3 py-2.5 bg-[#161b26] border border-[#2e374a] rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl"
         >
-          <span className="text-[11px] font-semibold text-[var(--text-secondary)] whitespace-nowrap">
+          <span className="text-[11px] font-bold text-gray-300 whitespace-nowrap">
             Delete:
           </span>
 
           {isSentByMe && (
             <button
               type="button"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-colors bg-red-500 hover:bg-red-600 text-white border-none whitespace-nowrap"
+              className="text-[11px] font-bold px-3 py-1 rounded-lg cursor-pointer transition-colors bg-red-600 hover:bg-red-700 text-white border-none whitespace-nowrap shadow-sm"
               onClick={(e) => { e.stopPropagation(); onConfirmEveryone(); }}
             >
               Everyone
@@ -471,7 +647,7 @@ function DeleteConfirmPopover({
 
           <button
             type="button"
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-colors bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] whitespace-nowrap"
+            className="text-[11px] font-bold px-3 py-1 rounded-lg cursor-pointer transition-colors bg-[#242c3d] hover:bg-[#313b52] text-gray-200 border border-white/10 whitespace-nowrap shadow-sm"
             onClick={(e) => { e.stopPropagation(); onConfirmMe(); }}
           >
             {isSentByMe ? 'Just Me' : 'Delete'}
@@ -479,7 +655,7 @@ function DeleteConfirmPopover({
 
           <button
             type="button"
-            className="ml-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-transparent border-none text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
+            className="ml-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-transparent border-none text-gray-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             title="Cancel"
           >

@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
-import { Smile, Paperclip, Send, X } from 'lucide-react';
+import { Smile, Paperclip, Send, X, Image as ImageIcon, Camera, Mail } from 'lucide-react';
+import { CameraCaptureModal } from './CameraCaptureModal';
+import { RichEmailModal } from './RichEmailModal';
 
 interface MessageInputProps {
   inputText: string;
@@ -20,11 +22,13 @@ interface MessageInputProps {
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onSend: () => void;
   onSendDefaultEmoji: () => void;
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect: (e: React.ChangeEvent<HTMLInputElement> | { target: { files: FileList | File[] } }) => void;
   onEmojiClick: (data: { emoji: string }) => void;
   onToggleEmojiPicker: () => void;
   onCancelReply: () => void;
+  onSendRichEmail?: (subject: string, htmlContent: string) => void;
   participants?: any[];
+  recipientName?: string;
 }
 
 export function MessageInput({
@@ -33,11 +37,31 @@ export function MessageInput({
   theme, showEmojiPicker, emojiPickerRef, textInputRef,
   onInputChange, onKeyDown, onSend, onSendDefaultEmoji,
   onFileSelect, onEmojiClick, onToggleEmojiPicker, onCancelReply,
+  onSendRichEmail,
   participants = [],
+  recipientName = 'Recipient',
 }: MessageInputProps) {
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
+
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [showRichEmailModal, setShowRichEmailModal] = useState(false);
+
+  const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Close attachment menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(e.target as Node)) {
+        setShowAttachmentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!participants || participants.length === 0) {
@@ -97,6 +121,10 @@ export function MessageInput({
     onKeyDown(e);
   };
 
+  const handleCameraCapture = (file: File) => {
+    onFileSelect({ target: { files: [file] } } as any);
+  };
+
   return (
     <>
       {/* Reply Drawer Banner */}
@@ -153,10 +181,85 @@ export function MessageInput({
           </div>
         )}
 
-        <label className="flex items-center justify-center cursor-pointer text-[var(--text-secondary)] w-10 h-10 rounded-full hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors" title="Send File Attachment">
-          <Paperclip size={18} />
-          <input type="file" onChange={onFileSelect} className="hidden" disabled={sendingMedia} multiple />
-        </label>
+        {/* Attachment Action Popover Menu */}
+        <div className="relative" ref={attachmentMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+            className="flex items-center justify-center cursor-pointer text-[var(--text-secondary)] w-10 h-10 rounded-full hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors border-none bg-transparent"
+            title="Attachment Options"
+          >
+            <Paperclip size={18} />
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={onFileSelect}
+            className="hidden"
+            disabled={sendingMedia}
+            multiple
+          />
+
+          {showAttachmentMenu && (
+            <div className="absolute bottom-12 left-0 z-[2000] w-60 bg-[#161b26] border border-[#242c3d] rounded-2xl shadow-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
+              
+              {/* Option 1: Upload File / Image */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  fileInputRef.current?.click();
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none text-left w-full cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center">
+                  <ImageIcon size={16} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-white">Upload Image / File</span>
+                  <span className="text-[10px] text-gray-400">Choose photos or files</span>
+                </div>
+              </button>
+
+              {/* Option 2: Capture Image */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  setShowCameraModal(true);
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none text-left w-full cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                  <Camera size={16} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-white">Capture Photo</span>
+                  <span className="text-[10px] text-gray-400">Take snap with camera</span>
+                </div>
+              </button>
+
+              {/* Option 3: Formatted Email Message */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  setShowRichEmailModal(true);
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none text-left w-full cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center">
+                  <Mail size={16} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-white">Formatted Email</span>
+                  <span className="text-[10px] text-gray-400">Rich Tiptap message editor</span>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="flex-grow relative flex items-center">
           <input
@@ -211,6 +314,28 @@ export function MessageInput({
           </button>
         )}
       </div>
+
+      {/* Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={showCameraModal}
+        onClose={() => setShowCameraModal(false)}
+        onCapture={handleCameraCapture}
+        activeThemeColor={activeThemeColor}
+      />
+
+      {/* Rich Email Message Modal */}
+      <RichEmailModal
+        isOpen={showRichEmailModal}
+        onClose={() => setShowRichEmailModal(false)}
+        onSend={(subj, html) => {
+          if (onSendRichEmail) {
+            onSendRichEmail(subj, html);
+          }
+        }}
+        activeThemeColor={activeThemeColor}
+        recipientName={recipientName}
+      />
     </>
   );
 }
+
