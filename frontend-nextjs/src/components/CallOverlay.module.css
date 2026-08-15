@@ -215,7 +215,7 @@
   flex-direction: row;
   flex: 1;
   width: 100%;
-  height: calc(100vh - 100px); /* leave room for controls at bottom */
+  height: 100%;
   position: relative;
   overflow: hidden;
 }
@@ -368,6 +368,10 @@
   font-size: 12px;
   font-weight: 500;
   color: white;
+  max-width: calc(100% - 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .participantCount {
@@ -618,7 +622,7 @@
 .focusedVideoWrapper {
   flex: 1;
   width: 100%;
-  height: calc(100% - 130px); /* leave room for thumbnail row */
+  height: 100%;
   position: relative;
   background: #000;
 }
@@ -639,11 +643,14 @@
 }
 
 .thumbnailStrip {
-  height: 120px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 110px;
   width: 100%;
-  background: rgba(15, 17, 21, 0.85);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* border at the bottom since it renders at top */
+  background: linear-gradient(180deg, rgba(15, 17, 21, 0.9) 0%, rgba(15, 17, 21, 0.4) 75%, transparent 100%);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -652,7 +659,7 @@
   padding: 10px 16px;
   box-sizing: border-box;
   overflow-x: auto;
-  z-index: 10;
+  z-index: 20;
 }
 
 .thumbnailTile {
@@ -1435,4 +1442,114 @@
 
 .lightMode .participantName {
   color: #111827 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+/* AUTO-HIDE CONTROLS STYLES                                   */
+/* ═══════════════════════════════════════════════════════════ */
+
+.videoControls,
+.timerOverlay,
+.thumbnailStrip {
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.controlsHidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.videoControls.controlsHidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translate(-50%, 24px) !important;
+}
+
+.timerOverlay.controlsHidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-24px) !important;
+}
+
+.thumbnailStrip.controlsHidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-100%) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+/* SCROLLBAR CLEANUP & MOBILE OPTIMIZATIONS                    */
+/* ═══════════════════════════════════════════════════════════ */
+
+.thumbnailStrip::-webkit-scrollbar,
+.videoControls::-webkit-scrollbar,
+.groupMediaArea::-webkit-scrollbar,
+.focusedSpeakerLayout::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.thumbnailStrip,
+.videoControls,
+.groupMediaArea,
+.focusedSpeakerLayout {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+@media (max-width: 768px) {
+  .videoControls {
+    bottom: 16px !important;
+    padding: 10px 14px !important;
+    gap: 8px 10px !important;
+    max-width: 320px !important;
+    width: max-content !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    border-radius: 24px !important;
+    overflow: visible !important;
+  }
+
+  .videoBtn {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .thumbnailStrip {
+    height: 84px !important;
+    padding: 6px 10px !important;
+    gap: 8px !important;
+    justify-content: flex-start !important;
+  }
+
+  .thumbnailTile {
+    width: 96px !important;
+    height: 64px !important;
+    min-width: 96px !important;
+  }
+
+  .thumbnailPlaceholderAvatar {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .thumbnailLabel {
+    font-size: 8px !important;
+    padding: 1px 4px !important;
+    bottom: 3px !important;
+    left: 3px !important;
+    max-width: calc(100% - 6px) !important;
+  }
+
+  .groupTileLabel {
+    font-size: 10px !important;
+    padding: 3px 10px !important;
+    bottom: 130px !important;
+    left: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    z-index: 15 !important;
+  }
 }

@@ -149,6 +149,28 @@ const CallOverlay: React.FC = () => {
   const [showAllParticipantsPanel, setShowAllParticipantsPanel] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [raiseConfirmModal, setRaiseConfirmModal] = useState<{ type: 'hand' | 'foot'; action: 'raise' | 'lower' } | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleUserActivity = () => {
+    setControlsVisible(true);
+    if (controlsTimerRef.current) {
+      clearTimeout(controlsTimerRef.current);
+    }
+    controlsTimerRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, 5000);
+  };
+
+  useEffect(() => {
+    handleUserActivity();
+    return () => {
+      if (controlsTimerRef.current) {
+        clearTimeout(controlsTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -160,9 +182,12 @@ const CallOverlay: React.FC = () => {
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error("Error attempting to enable fullscreen:", err);
-      });
+      const el = containerRef.current || document.documentElement;
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(err => {
+          console.error("Error attempting to enable fullscreen:", err);
+        });
+      }
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen();
@@ -477,8 +502,16 @@ const CallOverlay: React.FC = () => {
         ? styles.groupGrid2
         : styles.groupGrid4;
 
+      const isControlsHidden = !controlsVisible && !showEmojiTray && !showChatPanel && !showAllParticipantsPanel && !raiseConfirmModal && !muteConfirmConfig.isOpen;
+
       return (
-        <div className={styles.groupCallContainer}>
+        <div 
+          ref={containerRef}
+          className={styles.groupCallContainer}
+          onMouseMove={handleUserActivity}
+          onClick={handleUserActivity}
+          onTouchStart={handleUserActivity}
+        >
           {/* Main Layout containing Grid + sliding chat panel */}
           <div className={styles.groupMainBody}>
             {/* Grid display / Avatar display */}
@@ -498,9 +531,12 @@ const CallOverlay: React.FC = () => {
 
               {isVideoCall ? (
                 (() => {
-                  const screenSharingRemoteEntry = remoteEntries.find(([uid]) => groupCallScreenSharingStates[uid]);
-                  const screenSharingUserId = isGroupScreenSharing ? (user?.id || 'me') : (screenSharingRemoteEntry ? screenSharingRemoteEntry[0] : null);
-                  const effectiveFocusedUserId = screenSharingUserId || focusedUserId || (totalParticipants === 2 && remoteEntries.length > 0 ? remoteEntries[0][0] : null);
+                  const screenSharingRemoteEntries = remoteEntries.filter(([uid]) => groupCallScreenSharingStates[uid]);
+                  const latestRemoteScreenSharingUserId = screenSharingRemoteEntries.length > 0 
+                    ? screenSharingRemoteEntries[screenSharingRemoteEntries.length - 1][0] 
+                    : null;
+                  const defaultScreenSharingUserId = isGroupScreenSharing ? (user?.id || 'me') : latestRemoteScreenSharingUserId;
+                  const effectiveFocusedUserId = focusedUserId || defaultScreenSharingUserId || (totalParticipants === 2 && remoteEntries.length > 0 ? remoteEntries[0][0] : null);
 
                   if (effectiveFocusedUserId) {
                     const otherRemoteParticipants = remoteEntries.filter(([uid]) => uid !== effectiveFocusedUserId);
@@ -509,7 +545,7 @@ const CallOverlay: React.FC = () => {
                       <div className={styles.focusedSpeakerLayout}>
                         {/* Thumbnail Row for other remote participants (rendered at top) */}
                         {otherRemoteParticipants.length > 0 && (
-                          <div className={styles.thumbnailStrip}>
+                          <div className={`${styles.thumbnailStrip} ${isControlsHidden ? styles.controlsHidden : ''}`}>
                             {(() => {
                               const maxThumbnails = 4;
                               const hasOverflow = otherRemoteParticipants.length > maxThumbnails;
@@ -551,7 +587,7 @@ const CallOverlay: React.FC = () => {
                                           </div>
                                         )}
                                         <div className={styles.thumbnailLabel}>
-                                          {isSharingScreen && '💻 '}{participant?.name || 'Participant'} {isUserMuted && '🔇'}
+                                          {isSharingScreen && '💻 '}{participant?.name || 'Participant'} {groupCallHandRaisedStates[userId] && '🖐️'} {groupCallFootRaisedStates[userId] && '🦶'} {isUserMuted && '🔇'}
                                         </div>
                                         <RemoteAudioElement stream={stream} />
                                       </div>
@@ -955,7 +991,7 @@ const CallOverlay: React.FC = () => {
           </div>
 
           {/* Connected Timer overlay */}
-          <div className={styles.timerOverlay}>
+          <div className={`${styles.timerOverlay} ${isControlsHidden ? styles.controlsHidden : ''}`}>
             <div className={styles.timerDot} />
             <span>{formatTime(groupCallDuration)}</span>
             <span className={styles.participantCount}>
@@ -965,7 +1001,7 @@ const CallOverlay: React.FC = () => {
           </div>
 
           {/* Call controls overlay */}
-          <div className={styles.videoControls}>
+          <div className={`${styles.videoControls} ${isControlsHidden ? styles.controlsHidden : ''}`}>
             <button
               className={isGroupMuted ? styles.videoBtnMuted : styles.videoBtn}
               onClick={toggleGroupMute}

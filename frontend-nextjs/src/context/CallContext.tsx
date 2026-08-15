@@ -1446,6 +1446,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const toggleHandRaise = useCallback(() => {
     setIsHandRaised(prev => {
       const nextVal = !prev;
+      isHandRaisedRef.current = nextVal;
+      if (user) {
+        setGroupCallHandRaisedStates(prevStates => ({
+          ...prevStates,
+          [user.id]: nextVal,
+        }));
+      }
       if (socket && activeGroupCallRef.current) {
         const stream = groupLocalStreamRef.current;
         const videoTrack = stream?.getVideoTracks()[0];
@@ -1460,11 +1467,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return nextVal;
     });
-  }, [socket]);
+  }, [socket, user]);
 
   const toggleFootRaise = useCallback(() => {
     setIsFootRaised(prev => {
       const nextVal = !prev;
+      isFootRaisedRef.current = nextVal;
+      if (user) {
+        setGroupCallFootRaisedStates(prevStates => ({
+          ...prevStates,
+          [user.id]: nextVal,
+        }));
+      }
       if (socket && activeGroupCallRef.current) {
         const stream = groupLocalStreamRef.current;
         const videoTrack = stream?.getVideoTracks()[0];
@@ -1479,7 +1493,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return nextVal;
     });
-  }, [socket]);
+  }, [socket, user]);
 
   const adminMuteUser = useCallback((targetUserId: string) => {
     const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
