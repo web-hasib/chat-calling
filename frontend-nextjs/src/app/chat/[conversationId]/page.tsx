@@ -38,7 +38,7 @@ export default function ActiveChatPage() {
     handleToggleReaction, confirmDeleteMessage,
     updateChatSettings, scrollToMessage,
     getGroupedReactions, getRecipientInfo, getRecipientDisplayName,
-    isRecipientTyping, handleInputChange, stopTyping,
+    isRecipientTyping, recipientTypingText, handleInputChange, stopTyping,
     mediaEditor
   } = chat;
 
@@ -111,11 +111,11 @@ export default function ActiveChatPage() {
   const activeThemeGradient = activeConvo?.themeGradient;
   const activeBgImage = activeConvo?.bgImage;
   const activeDefaultEmoji = activeConvo?.defaultEmoji || '👍';
-  
+
   const isGroup = activeConvo?.isGroup;
   const recipientInfo = isGroup ? null : getRecipientInfo(activeConvo);
-  const recipientName = isGroup 
-    ? (activeConvo?.name || 'Group') 
+  const recipientName = isGroup
+    ? (activeConvo?.name || 'Group')
     : getRecipientDisplayName(activeConvo);
   const recipientAvatarUrl = isGroup
     ? (activeConvo?.avatarUrl || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=100&q=80')
@@ -204,7 +204,7 @@ export default function ActiveChatPage() {
 
   const handleSendRichEmail = (subject: string, htmlContent: string) => {
     const richPayload = `[RICH_EMAIL]${JSON.stringify({ subject, html: htmlContent })}`;
-    handleSend(richPayload, () => {}, stopTyping);
+    handleSend(richPayload, () => { }, stopTyping);
   };
 
   return (
@@ -283,6 +283,7 @@ export default function ActiveChatPage() {
             onSendRichEmail={handleSendRichEmail}
             participants={activeConvo?.participants || []}
             recipientName={recipientName}
+            recipientTypingText={recipientTypingText}
           />
         </div>
 

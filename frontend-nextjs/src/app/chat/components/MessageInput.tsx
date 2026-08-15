@@ -29,6 +29,7 @@ interface MessageInputProps {
   onSendRichEmail?: (subject: string, htmlContent: string) => void;
   participants?: any[];
   recipientName?: string;
+  recipientTypingText?: string;
 }
 
 export function MessageInput({
@@ -40,6 +41,7 @@ export function MessageInput({
   onSendRichEmail,
   participants = [],
   recipientName = 'Recipient',
+  recipientTypingText = '',
 }: MessageInputProps) {
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
@@ -144,9 +146,27 @@ export function MessageInput({
         </div>
       )}
 
+      {/* Remote Typing Draft Preview (Above Input Box) */}
+      {recipientTypingText && recipientTypingText.trim().length > 0 && (
+        <div className="px-4 py-2 bg-[#121722] border-t border-[var(--border-color)] flex items-center justify-between text-xs animate-in slide-in-from-bottom-1 duration-150">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="w-2 h-2 rounded-full bg-purple-500 animate-ping shrink-0" />
+            <span className="font-semibold text-purple-400 shrink-0">
+              {recipientName} is typing:
+            </span>
+            <span className="text-gray-200 italic truncate font-normal">
+              "{recipientTypingText}"
+            </span>
+          </div>
+          <span className="text-[10px] text-gray-400 shrink-0 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+            Live Preview
+          </span>
+        </div>
+      )}
+
       {/* Chat Input Panel */}
       <div className="relative p-4 md:px-5 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] flex items-center gap-3">
-        
+
         {/* Mention Suggestions Dropdown */}
         {showMentionList && filteredParticipants.length > 0 && (
           <div className="absolute bottom-[72px] left-[54px] z-[1000] w-[240px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[200px] overflow-y-auto">
@@ -155,9 +175,8 @@ export function MessageInput({
                 key={p.id}
                 type="button"
                 onClick={() => selectMention(p.user)}
-                className={`flex items-center gap-2 px-3 py-2 w-full text-left text-xs border-none bg-transparent hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors ${
-                  mentionIndex === idx ? 'bg-[var(--bg-tertiary)]' : 'text-[var(--text-primary)]'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 w-full text-left text-xs border-none bg-transparent hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors ${mentionIndex === idx ? 'bg-[var(--bg-tertiary)]' : 'text-[var(--text-primary)]'
+                  }`}
               >
                 <img src={p.user?.avatarUrl} alt={p.user?.name} className="w-5 h-5 rounded-full object-cover" />
                 <div className="flex flex-col">
@@ -203,7 +222,7 @@ export function MessageInput({
 
           {showAttachmentMenu && (
             <div className="absolute bottom-12 left-0 z-[2000] w-60 bg-[#161b26] border border-[#242c3d] rounded-2xl shadow-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
-              
+
               {/* Option 1: Upload File / Image */}
               <button
                 type="button"
@@ -269,8 +288,8 @@ export function MessageInput({
               uploading
                 ? 'Uploading attachment...'
                 : replyingTo
-                ? `Replying to ${replyingTo.sender?.name || 'message'}...`
-                : 'Type a message...'
+                  ? `Replying to ${replyingTo.sender?.name || 'message'}...`
+                  : 'Type a message...'
             }
             value={inputText}
             onChange={(e) => onInputChange(e.target.value)}
@@ -297,8 +316,8 @@ export function MessageInput({
               activeThemeGradient
                 ? { background: activeThemeGradient }
                 : activeThemeColor
-                ? { background: activeThemeColor }
-                : undefined
+                  ? { background: activeThemeColor }
+                  : undefined
             }
           >
             <Send size={16} />

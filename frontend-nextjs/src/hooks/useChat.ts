@@ -4,7 +4,8 @@ import { useSocket } from '../context/SocketContext';
 export function useChat(
   user: any,
   token: string | null,
-  setIsRecipientTyping: (v: boolean) => void
+  setIsRecipientTyping: (v: boolean) => void,
+  setRecipientTypingText?: (t: string) => void
 ) {
   const { socket } = useSocket();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -105,7 +106,7 @@ export function useChat(
       fetch(`${API_URL}/chat/conversation/${convo.id}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (e) {
       console.error('Error fetching messages', e);
     } finally {
@@ -192,12 +193,12 @@ export function useChat(
       isRead: false,
       replyTo: replyingTo
         ? {
-            id: replyingTo.id,
-            content: replyingTo.content,
-            fileUrl: replyingTo.fileUrl,
-            fileType: replyingTo.fileType,
-            sender: { id: replyingTo.senderId, name: replyingTo.sender?.name || 'User' },
-          }
+          id: replyingTo.id,
+          content: replyingTo.content,
+          fileUrl: replyingTo.fileUrl,
+          fileType: replyingTo.fileType,
+          sender: { id: replyingTo.senderId, name: replyingTo.sender?.name || 'User' },
+        }
         : null,
       sender: { id: user.id, name: user.name, avatarUrl: user.avatarUrl },
     };
@@ -498,13 +499,25 @@ export function useChat(
   }, [socket]);
 
   useEffect(() => {
-    if (!socket || !activeConvo) { setIsRecipientTyping(false); return; }
-    const eventName = `typing-${activeConvo.id}`;
-    socket.on(eventName, (data: { userId: string; isTyping: boolean }) => {
-      if (data.userId !== user?.id) setIsRecipientTyping(data.isTyping);
-    });
-    return () => { socket.off(eventName); };
-  }, [socket, activeConvo, user, setIsRecipientTyping]);
+    const convoId = activeConvo?.id || activeConvo?._id;
+    if (!socket || !convoId) {
+      setIsRecipientTyping(false);
+      if (setRecipientTypingText) setRecipientTypingText('');
+      return;
+    }
+    const eventName = `typing-${convoId}`;
+    const handleTypingEvent = (data: { userId: string; isTyping: boolean; text?: string }) => {
+      const currentUserId = user?.id || user?._id;
+      if (String(data.userId) !== String(currentUserId)) {
+        setIsRecipientTyping(data.isTyping);
+        if (setRecipientTypingText && data.text !== undefined) {
+          setRecipientTypingText(data.text);
+        }
+      }
+    };
+    socket.on(eventName, handleTypingEvent);
+    return () => { socket.off(eventName, handleTypingEvent); };
+  }, [socket, activeConvo, user, setIsRecipientTyping, setRecipientTypingText]);
 
   // Auto-sync active conversation messages into memory cache
   useEffect(() => {

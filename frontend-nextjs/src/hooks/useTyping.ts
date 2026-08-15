@@ -9,26 +9,26 @@ export function useTyping(activeConvo: any) {
 
   const handleInputChange = (val: string, setInputText: (v: string) => void) => {
     setInputText(val);
-    if (!socket || !activeConvo) return;
+    const convoId = activeConvo?.id || activeConvo?._id;
+    if (!socket || !convoId) return;
 
-    if (!isTypingLocalRef.current) {
-      isTypingLocalRef.current = true;
-      socket.emit('typing', { conversationId: activeConvo.id, isTyping: true });
-    }
+    isTypingLocalRef.current = true;
+    socket.emit('typing', { conversationId: convoId, isTyping: true, text: val });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
       isTypingLocalRef.current = false;
-      socket.emit('typing', { conversationId: activeConvo.id, isTyping: false });
-    }, 1500);
+      socket.emit('typing', { conversationId: convoId, isTyping: false, text: val });
+    }, 2000);
   };
 
   const stopTyping = () => {
+    const convoId = activeConvo?.id || activeConvo?._id;
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (isTypingLocalRef.current && socket && activeConvo) {
+    if (socket && convoId) {
       isTypingLocalRef.current = false;
-      socket.emit('typing', { conversationId: activeConvo.id, isTyping: false });
+      socket.emit('typing', { conversationId: convoId, isTyping: false, text: '' });
     }
   };
 

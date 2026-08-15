@@ -148,7 +148,7 @@ export function RichEmailModal({
   return (
     <div className="fixed inset-0 z-[10000] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl bg-[#12161f] border border-[#242c3d] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#242c3d] bg-[#0a0c10]">
           <div className="flex items-center gap-3">
@@ -160,7 +160,7 @@ export function RichEmailModal({
               <p className="text-[11px] text-gray-400 font-normal">Create styled messages with Tiptap Editor</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {/* Preset Templates */}
             <div className="relative">
@@ -215,7 +215,7 @@ export function RichEmailModal({
 
         {/* Tiptap Rich Formatting Toolbar */}
         <div className="px-4 py-2 bg-[#1b212f] border-b border-[#242c3d] flex flex-wrap items-center gap-1">
-          
+
           {/* Headings */}
           <button
             type="button"

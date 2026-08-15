@@ -70,7 +70,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       for (const [convoId, groupCall] of this.activeGroupCalls.entries()) {
         if (groupCall.participants.has(userId)) {
           groupCall.participants.delete(userId);
-          
+
           // Notify remaining participants
           for (const peerId of groupCall.participants) {
             const peerSocketId = this.activeUsers.get(peerId);
@@ -195,11 +195,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('typing')
   handleTyping(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; isTyping: boolean }
+    @MessageBody() data: { conversationId: string; isTyping: boolean; text?: string }
   ) {
     const userId = client.data.userId;
     if (!userId) return;
-    this.server.emit(`typing-${data.conversationId}`, { userId, isTyping: data.isTyping });
+    this.server.emit(`typing-${data.conversationId}`, {
+      userId,
+      isTyping: data.isTyping,
+      text: data.text || '',
+    });
   }
 
   @SubscribeMessage('update-conversation-settings')

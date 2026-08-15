@@ -52,6 +52,8 @@ interface ChatContextType {
   // Typing hook
   isRecipientTyping: boolean;
   setIsRecipientTyping: (v: boolean) => void;
+  recipientTypingText: string;
+  setRecipientTypingText: (t: string) => void;
   handleInputChange: (val: string, setInputText: (v: string) => void) => void;
   stopTyping: () => void;
 
@@ -65,8 +67,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, token } = useAuth();
   const { socket } = useSocket();
   const [isRecipientTyping, setIsRecipientTyping] = useState(false);
+  const [recipientTypingText, setRecipientTypingText] = useState('');
 
-  const chat = useChat(user, token, setIsRecipientTyping);
+  const chat = useChat(user, token, setIsRecipientTyping, setRecipientTypingText);
   const typing = useTyping(chat.activeConvo);
   const mediaEditor = useMediaEditor(
     chat.activeConvo,
@@ -83,6 +86,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...chat,
         isRecipientTyping,
         setIsRecipientTyping,
+        recipientTypingText,
+        setRecipientTypingText,
         handleInputChange: typing.handleInputChange,
         stopTyping: typing.stopTyping,
         mediaEditor,
