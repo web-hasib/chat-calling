@@ -1500,15 +1500,19 @@
 
 @media (max-width: 768px) {
   .videoControls {
-    bottom: 16px !important;
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
     padding: 10px 14px !important;
     gap: 8px 10px !important;
     max-width: 320px !important;
     width: max-content !important;
     flex-wrap: wrap !important;
     justify-content: center !important;
-    border-radius: 24px !important;
+    border-radius: 26px !important;
     overflow: visible !important;
+    background: rgba(14, 17, 24, 0.88) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
   }
 
   .videoBtn {
@@ -1516,6 +1520,11 @@
     height: 42px !important;
     min-width: 42px !important;
     flex-shrink: 0 !important;
+    transition: transform 0.1s ease !important;
+  }
+
+  .videoBtn:active {
+    transform: scale(0.9) !important;
   }
 
   .thumbnailStrip {
@@ -1529,6 +1538,7 @@
     width: 96px !important;
     height: 64px !important;
     min-width: 96px !important;
+    border-radius: 12px !important;
   }
 
   .thumbnailPlaceholderAvatar {
@@ -1546,17 +1556,64 @@
 
   .groupTileLabel {
     font-size: 10px !important;
-    padding: 3px 10px !important;
-    bottom: 130px !important;
+    padding: 4px 10px !important;
+    bottom: calc(125px + env(safe-area-inset-bottom)) !important;
     left: 12px !important;
     max-width: calc(100vw - 24px) !important;
     z-index: 15 !important;
+    border-radius: 20px !important;
+    background: rgba(10, 12, 16, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
   }
 
   .localVideo {
-    width: 90px !important;
-    height: 130px !important;
-    bottom: 120px !important;
+    width: 96px !important;
+    height: 136px !important;
+    bottom: calc(120px + env(safe-area-inset-bottom)) !important;
     right: 12px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .participantsModalOverlay {
+    align-items: flex-end !important;
+  }
+
+  .participantsModal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 82vh !important;
+    margin: 0 !important;
+    animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative !important;
+    background: rgba(18, 21, 31, 0.96) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+  }
+
+  .participantsModal::before {
+    content: '';
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
+    margin: 10px auto 2px auto;
+  }
+
+  .participantsHeader {
+    padding: 12px 20px 16px 20px !important;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }

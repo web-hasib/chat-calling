@@ -80,13 +80,24 @@
 }
 
 /* Reset & Global */
-body {
+html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
 /* Custom Scrollbar */
