@@ -39,7 +39,7 @@ interface ChatContextType {
   handleSendDefaultEmoji: () => void;
   handleToggleReaction: (msgId: string, emoji: string) => void;
   confirmDeleteMessage: (msgId: string) => void;
-  updateChatSettings: (settings: any) => Promise<void>;
+  updateChatSettings: (settings: any) => Promise<void> | void;
   scrollToMessage: (id: string, highlightClass: string) => void;
   getGroupedReactions: (reactions?: any[]) => any[];
   getRecipientInfo: (convo: any) => any;

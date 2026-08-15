@@ -88,6 +88,7 @@ interface CallContextType {
   groupCallMessages: GroupChatMessage[];
   latestEmojiReaction: GroupCallEmojiReaction | null;
   groupCallVideoStates: Record<string, boolean>;
+  groupCallScreenSharingStates: Record<string, boolean>;
   groupMutedUserIds: Set<string>;
   myGroupRole: string | null;
   isHandRaised: boolean;
@@ -291,6 +292,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [groupCallMessages, setGroupCallMessages] = useState<GroupChatMessage[]>([]);
   const [latestEmojiReaction, setLatestEmojiReaction] = useState<GroupCallEmojiReaction | null>(null);
   const [groupCallVideoStates, setGroupCallVideoStates] = useState<Record<string, boolean>>({});
+  const [groupCallScreenSharingStates, setGroupCallScreenSharingStates] = useState<Record<string, boolean>>({});
 
   // Current active conversation context to track group call status
   const [currentConvoId, setCurrentConvoId] = useState<string | null>(null);
@@ -501,11 +503,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCallDuration(0);
   };
 
-  const initMedia = async (type: 'AUDIO' | 'VIDEO') => {
+  const initMedia = async (type: 'AUDIO' | 'VIDEO', isGroup = false) => {
     try {
+      const videoConstraints = isGroup
+        ? {
+            width: { ideal: 640, max: 854 },
+            height: { ideal: 360, max: 480 },
+            frameRate: { ideal: 15, max: 20 },
+          }
+        : type === 'VIDEO';
+
+      const audioConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: type === 'VIDEO',
-        audio: true,
+        video: type === 'VIDEO' ? videoConstraints : false,
+        audio: audioConstraints,
       });
       return stream;
     } catch (e) {
@@ -514,7 +530,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const fallbackStream = await navigator.mediaDevices.getUserMedia({
             video: false,
-            audio: true,
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
           });
           return fallbackStream;
         } catch (err) {
@@ -735,6 +755,31 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // GROUP CALL LOGIC
   // ═══════════════════════════════════════════════════════════
 
+  // Helper to optimize encoding parameters on group call video senders
+  const applyGroupSenderEncodingParams = useCallback((pc: RTCPeerConnection, isScreenShare = false) => {
+    try {
+      const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender && videoSender.track) {
+        const params = videoSender.getParameters();
+        if (!params.encodings || params.encodings.length === 0) {
+          params.encodings = [{}];
+        }
+        if (isScreenShare) {
+          params.encodings[0].maxBitrate = 1000000; // 1 Mbps for sharp screen sharing text
+          params.encodings[0].maxFramerate = 15;
+          delete params.encodings[0].scaleResolutionDownBy;
+        } else {
+          params.encodings[0].maxBitrate = 250000; // 250 kbps max per peer in group call to save CPU & bandwidth
+          params.encodings[0].maxFramerate = 20;
+          params.encodings[0].scaleResolutionDownBy = 1.2;
+        }
+        videoSender.setParameters(params).catch(() => {});
+      }
+    } catch (e) {
+      // Graceful fallback if browser doesn't support setting encoding parameters
+    }
+  }, []);
+
   // Helper: create a peer connection for a specific group peer
   const createGroupPeerConnection = useCallback((peerId: string, stream: MediaStream): RTCPeerConnection => {
     const pc = new RTCPeerConnection(iceConfig);
@@ -742,6 +787,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stream.getTracks().forEach((track) => {
       pc.addTrack(track, stream);
     });
+
+    // Apply bitrate & framerate caps for group calls to save CPU and bandwidth
+    applyGroupSenderEncodingParams(pc, isGroupScreenSharing);
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
@@ -774,7 +822,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     groupPeerConnectionsRef.current.set(peerId, pc);
     return pc;
-  }, [socket]);
+  }, [socket, isGroupScreenSharing, applyGroupSenderEncodingParams]);
 
   // Helper: remove a specific peer from the group call
   const removeGroupPeer = useCallback((peerId: string) => {
@@ -1054,7 +1102,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Handle camera and audio status changes of other peers
-    socket.on('group-call-media-state-received', (data: { userId: string; videoEnabled: boolean; audioEnabled: boolean; handRaised?: boolean; footRaised?: boolean }) => {
+    socket.on('group-call-media-state-received', (data: { userId: string; videoEnabled: boolean; audioEnabled: boolean; handRaised?: boolean; footRaised?: boolean; isScreenSharing?: boolean }) => {
       setGroupCallVideoStates(prev => ({
         ...prev,
         [data.userId]: data.videoEnabled,
@@ -1078,6 +1126,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setGroupCallFootRaisedStates(prev => ({
           ...prev,
           [data.userId]: data.footRaised || false,
+        }));
+      }
+      if (data.isScreenSharing !== undefined) {
+        setGroupCallScreenSharingStates(prev => ({
+          ...prev,
+          [data.userId]: data.isScreenSharing || false,
         }));
       }
     });
@@ -1151,7 +1205,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!socket || !user) return;
 
     try {
-      const stream = await initMedia(type);
+      const stream = await initMedia(type, true);
       setGroupLocalStream(stream);
       groupLocalStreamRef.current = stream;
       setIsGroupMuted(false);
@@ -1191,7 +1245,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         participants: activeGroupCall?.participants || [],
       });
 
-      const stream = await initMedia(callType);
+      const stream = await initMedia(callType, true);
       setGroupLocalStream(stream);
       groupLocalStreamRef.current = stream;
       setIsGroupMuted(false);
@@ -1281,6 +1335,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
           if (videoSender) {
             await videoSender.replaceTrack(screenTrack);
+            applyGroupSenderEncodingParams(pc, true);
           }
         }
 
@@ -1289,13 +1344,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         setIsGroupScreenSharing(true);
+
+        if (socket && activeGroupCallRef.current) {
+          const audioTrack = stream.getAudioTracks()[0];
+          socket.emit('group-call-media-state', {
+            conversationId: activeGroupCallRef.current.conversationId,
+            videoEnabled: true,
+            audioEnabled: audioTrack ? audioTrack.enabled : !isGroupMuted,
+            handRaised: isHandRaisedRef.current,
+            footRaised: isFootRaisedRef.current,
+            isScreenSharing: true,
+          });
+        }
       } catch (err) {
         console.error('Error starting group screen share', err);
       }
     } else {
       stopGroupScreenShareHelper();
     }
-  }, [isGroupScreenSharing]);
+  }, [isGroupScreenSharing, isGroupMuted, socket, applyGroupSenderEncodingParams]);
 
   const stopGroupScreenShareHelper = useCallback(async () => {
     if (groupScreenTrackRef.current) {
@@ -1310,11 +1377,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
         if (videoSender && webcamTrack) {
           await videoSender.replaceTrack(webcamTrack);
+          applyGroupSenderEncodingParams(pc, false);
         }
       }
     }
     setIsGroupScreenSharing(false);
-  }, []);
+
+    if (socket && activeGroupCallRef.current) {
+      const videoTrack = stream ? stream.getVideoTracks()[0] : null;
+      const audioTrack = stream ? stream.getAudioTracks()[0] : null;
+      socket.emit('group-call-media-state', {
+        conversationId: activeGroupCallRef.current.conversationId,
+        videoEnabled: videoTrack ? videoTrack.enabled : false,
+        audioEnabled: audioTrack ? audioTrack.enabled : !isGroupMuted,
+        handRaised: isHandRaisedRef.current,
+        footRaised: isFootRaisedRef.current,
+        isScreenSharing: false,
+      });
+    }
+  }, [socket, isGroupMuted, applyGroupSenderEncodingParams]);
 
   const sendGroupCallMessage = useCallback((message: string) => {
     const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
@@ -1449,6 +1530,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         groupCallMessages,
         latestEmojiReaction,
         groupCallVideoStates,
+        groupCallScreenSharingStates,
         groupMutedUserIds,
         myGroupRole,
         isHandRaised,

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useCall } from '../context/CallContext';
 import { useAuth } from '../context/AuthContext';
 import styles from './CallOverlay.module.css';
-import { Phone, PhoneOff, Mic, MicOff, Video as VideoOn, VideoOff, Monitor, Users, LogOut, MessageSquare, Smile, Send, X as CloseIcon } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Video as VideoOn, VideoOff, Monitor, Users, LogOut, MessageSquare, Smile, Send, X as CloseIcon, Maximize2, Minimize2 } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 interface FloatingEmoji {
@@ -31,6 +31,55 @@ const getDiscordAdaptiveBg = (userId: string) => {
   const index = Math.abs(hash) % colors.length;
   return colors[index];
 };
+
+const RemoteVideoElement: React.FC<{
+  stream: MediaStream;
+  className?: string;
+  onRef?: (el: HTMLVideoElement | null) => void;
+}> = React.memo(({ stream, className, onRef }) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
+      onRef?.(videoRef.current);
+    }
+  }, [stream, onRef]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      className={className}
+    />
+  );
+});
+RemoteVideoElement.displayName = 'RemoteVideoElement';
+
+const RemoteAudioElement: React.FC<{
+  stream: MediaStream;
+}> = React.memo(({ stream }) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (audioRef.current && audioRef.current.srcObject !== stream) {
+      audioRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <audio
+      ref={audioRef}
+      autoPlay
+      playsInline
+      style={{ display: 'none' }}
+    />
+  );
+});
+RemoteAudioElement.displayName = 'RemoteAudioElement';
 
 const CallOverlay: React.FC = () => {
   const { user } = useAuth();
@@ -68,6 +117,7 @@ const CallOverlay: React.FC = () => {
     triggerGroupCallEmoji,
     latestEmojiReaction,
     groupCallVideoStates,
+    groupCallScreenSharingStates,
     groupMutedUserIds,
     myGroupRole,
     isHandRaised,
@@ -97,6 +147,28 @@ const CallOverlay: React.FC = () => {
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [focusedUserId, setFocusedUserId] = useState<string | null>(null);
   const [showAllParticipantsPanel, setShowAllParticipantsPanel] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [raiseConfirmModal, setRaiseConfirmModal] = useState<{ type: 'hand' | 'foot'; action: 'raise' | 'lower' } | null>(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error("Error attempting to enable fullscreen:", err);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
   const [muteConfirmConfig, setMuteConfirmConfig] = useState<{
     isOpen: boolean;
     type: 'all' | 'user';
@@ -426,7 +498,9 @@ const CallOverlay: React.FC = () => {
 
               {isVideoCall ? (
                 (() => {
-                  const effectiveFocusedUserId = focusedUserId || (totalParticipants === 2 && remoteEntries.length > 0 ? remoteEntries[0][0] : null);
+                  const screenSharingRemoteEntry = remoteEntries.find(([uid]) => groupCallScreenSharingStates[uid]);
+                  const screenSharingUserId = isGroupScreenSharing ? (user?.id || 'me') : (screenSharingRemoteEntry ? screenSharingRemoteEntry[0] : null);
+                  const effectiveFocusedUserId = screenSharingUserId || focusedUserId || (totalParticipants === 2 && remoteEntries.length > 0 ? remoteEntries[0][0] : null);
 
                   if (effectiveFocusedUserId) {
                     const otherRemoteParticipants = remoteEntries.filter(([uid]) => uid !== effectiveFocusedUserId);
@@ -449,6 +523,8 @@ const CallOverlay: React.FC = () => {
                                   {toRender.map(([userId, stream]) => {
                                     const participant = activeGroupCall.participants.find(p => p.userId === userId);
                                     const hasVideo = groupCallVideoStates[userId] !== false;
+                                    const isSharingScreen = groupCallScreenSharingStates[userId];
+                                    const isUserMuted = groupMutedUserIds.has(userId);
 
                                     return (
                                       <div 
@@ -458,16 +534,12 @@ const CallOverlay: React.FC = () => {
                                         title={`Focus ${participant?.name || 'Participant'}`}
                                       >
                                         {hasVideo ? (
-                                          <video
-                                            ref={(el) => {
-                                              if (el) {
-                                                groupRemoteVideoRefs.current.set(userId, el);
-                                                if (el.srcObject !== stream) el.srcObject = stream;
-                                              }
-                                            }}
-                                            autoPlay
-                                            playsInline
+                                          <RemoteVideoElement
+                                            stream={stream}
                                             className={styles.thumbnailVideoEl}
+                                            onRef={(el) => {
+                                              if (el) groupRemoteVideoRefs.current.set(userId, el);
+                                            }}
                                           />
                                         ) : (
                                           <div className={styles.thumbnailPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(userId) }}>
@@ -479,31 +551,16 @@ const CallOverlay: React.FC = () => {
                                           </div>
                                         )}
                                         <div className={styles.thumbnailLabel}>
-                                          {participant?.name || 'Participant'}
+                                          {isSharingScreen && '💻 '}{participant?.name || 'Participant'} {isUserMuted && '🔇'}
                                         </div>
-                                        <audio
-                                          ref={(el) => {
-                                            if (el && el.srcObject !== stream) el.srcObject = stream;
-                                          }}
-                                          autoPlay
-                                          playsInline
-                                          style={{ display: 'none' }}
-                                        />
+                                        <RemoteAudioElement stream={stream} />
                                       </div>
                                     );
                                   })}
 
                                   {/* Background audio tracks to keep overflow participants audible */}
                                   {hasOverflow && otherRemoteParticipants.slice(maxThumbnails - 1).map(([userId, stream]) => (
-                                    <audio
-                                      key={`audio-bg-thumb-${userId}`}
-                                      ref={(el) => {
-                                        if (el && el.srcObject !== stream) el.srcObject = stream;
-                                      }}
-                                      autoPlay
-                                      playsInline
-                                      style={{ display: 'none' }}
-                                    />
+                                    <RemoteAudioElement key={`audio-bg-thumb-${userId}`} stream={stream} />
                                   ))}
 
                                   {/* + others Overflow tile */}
@@ -523,28 +580,53 @@ const CallOverlay: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Pinned Focused Video (takes up remaining space) */}
+                        {/* Pinned Focused Video / Screen Share Spotlight (takes up remaining space) */}
                         <div className={styles.focusedVideoWrapper}>
                           {(() => {
+                            if (effectiveFocusedUserId === (user?.id || 'me')) {
+                              return (
+                                <div className={styles.focusedVideoTile} onClick={() => setFocusedUserId(null)} title="Click to unpin">
+                                  {!isGroupVideoMuted ? (
+                                    <video
+                                      ref={groupLocalVideoRef}
+                                      autoPlay
+                                      playsInline
+                                      muted
+                                      className={styles.focusedVideoEl}
+                                    />
+                                  ) : (
+                                    <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(user?.id || 'me') }}>
+                                      <img
+                                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=me`}
+                                        alt="You"
+                                        className={styles.groupPlaceholderAvatar}
+                                        style={{ width: 120, height: 120 }}
+                                      />
+                                    </div>
+                                  )}
+                                  <div className={styles.groupTileLabel}>
+                                    💻 You (Sharing Screen) {isHandRaised && '🖐️'} {isFootRaised && '🦶'} {isGroupMuted && '🔇'}
+                                  </div>
+                                </div>
+                              );
+                            }
+
                             const focusedEntry = remoteEntries.find(([uid]) => uid === effectiveFocusedUserId);
                             if (!focusedEntry) return null;
                             const [uid, stream] = focusedEntry;
                             const participant = activeGroupCall.participants.find(p => p.userId === uid);
                             const hasVideo = groupCallVideoStates[uid] !== false;
+                            const isUserScreenSharing = groupCallScreenSharingStates[uid];
 
                             return (
                               <div key={uid} className={styles.focusedVideoTile} onClick={() => setFocusedUserId(null)} title="Click to unpin">
                                 {hasVideo ? (
-                                  <video
-                                    ref={(el) => {
-                                      if (el) {
-                                        groupRemoteVideoRefs.current.set(uid, el);
-                                        if (el.srcObject !== stream) el.srcObject = stream;
-                                      }
-                                    }}
-                                    autoPlay
-                                    playsInline
+                                  <RemoteVideoElement
+                                    stream={stream}
                                     className={styles.focusedVideoEl}
+                                    onRef={(el) => {
+                                      if (el) groupRemoteVideoRefs.current.set(uid, el);
+                                    }}
                                   />
                                 ) : (
                                   <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(uid) }}>
@@ -557,50 +639,47 @@ const CallOverlay: React.FC = () => {
                                   </div>
                                 )}
                                 <div className={styles.groupTileLabel}>
-                                  📌 {participant?.name || 'Participant'}
+                                  {isUserScreenSharing ? '💻' : '📌'} {participant?.name || 'Participant'} {isUserScreenSharing ? '(Sharing Screen)' : ''} {groupCallHandRaisedStates[uid] && '🖐️'} {groupCallFootRaisedStates[uid] && '🦶'} {groupMutedUserIds.has(uid) && '🔇'}
                                 </div>
-                                <audio
-                                  ref={(el) => {
-                                    if (el && el.srcObject !== stream) el.srcObject = stream;
-                                  }}
-                                  autoPlay
-                                  playsInline
-                                  style={{ display: 'none' }}
-                                />
+                                <RemoteAudioElement stream={stream} />
                               </div>
                             );
                           })()}
                         </div>
 
                         {/* Floating Local Preview PIP (Always on top, draggable) */}
-                        <div 
-                          className={`${styles.groupVideoTile} ${styles.groupLocalVideoTile}`}
-                          style={{
-                            transform: `translate(${groupPipPosition.x}px, ${groupPipPosition.y}px)`,
-                          }}
-                          onPointerDown={handleGroupPointerDown}
-                          onPointerMove={handleGroupPointerMove}
-                          onPointerUp={handleGroupPointerUp}
-                        >
-                          {!isGroupVideoMuted ? (
-                            <video
-                              ref={groupLocalVideoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className={styles.groupVideoEl}
-                            />
-                          ) : (
-                            <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(user?.id || 'me') }}>
-                              <img
-                                src={`https://api.dicebear.com/7.x/adventurer/svg?seed=me`}
-                                alt="You"
-                                className={styles.groupPlaceholderAvatar}
+                        {effectiveFocusedUserId !== (user?.id || 'me') && (
+                          <div 
+                            className={`${styles.groupVideoTile} ${styles.groupLocalVideoTile}`}
+                            style={{
+                              transform: `translate(${groupPipPosition.x}px, ${groupPipPosition.y}px)`,
+                            }}
+                            onPointerDown={handleGroupPointerDown}
+                            onPointerMove={handleGroupPointerMove}
+                            onPointerUp={handleGroupPointerUp}
+                          >
+                            {!isGroupVideoMuted ? (
+                              <video
+                                ref={groupLocalVideoRef}
+                                autoPlay
+                                playsInline
+                                muted
+                                className={styles.groupVideoEl}
                               />
+                            ) : (
+                              <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(user?.id || 'me') }}>
+                                <img
+                                  src={`https://api.dicebear.com/7.x/adventurer/svg?seed=me`}
+                                  alt="You"
+                                  className={styles.groupPlaceholderAvatar}
+                                />
+                              </div>
+                            )}
+                            <div className={styles.groupTileLabel}>
+                              {isGroupScreenSharing && '💻 '}You {isGroupScreenSharing && '(Sharing Screen)'} {isGroupMuted && '🔇'}
                             </div>
-                          )}
-                          <div className={styles.groupTileLabel}>You {isGroupMuted && '🔇'}</div>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     );
                   }
@@ -635,7 +714,9 @@ const CallOverlay: React.FC = () => {
                             />
                           </div>
                         )}
-                        <div className={styles.groupTileLabel}>You {isGroupMuted && '🔇'}</div>
+                        <div className={styles.groupTileLabel}>
+                          {isGroupScreenSharing && '💻 '}You {isGroupScreenSharing && '(Sharing Screen)'} {isHandRaised && '🖐️'} {isFootRaised && '🦶'} {isGroupMuted && '🔇'}
+                        </div>
                       </div>
 
                       {/* Remote Tiles (Capped at 2 if total participants > 4) */}
@@ -651,6 +732,7 @@ const CallOverlay: React.FC = () => {
                               const participant = activeGroupCall.participants.find(p => p.userId === userId);
                               const hasVideo = groupCallVideoStates[userId] !== false;
                               const isUserMuted = groupMutedUserIds.has(userId);
+                              const isUserScreenSharing = groupCallScreenSharingStates[userId];
 
                               return (
                                 <div 
@@ -661,16 +743,12 @@ const CallOverlay: React.FC = () => {
                                   style={{ cursor: 'pointer' }}
                                 >
                                   {hasVideo ? (
-                                    <video
-                                      ref={(el) => {
-                                        if (el) {
-                                          groupRemoteVideoRefs.current.set(userId, el);
-                                          if (el.srcObject !== stream) el.srcObject = stream;
-                                        }
-                                      }}
-                                      autoPlay
-                                      playsInline
+                                    <RemoteVideoElement
+                                      stream={stream}
                                       className={styles.groupVideoEl}
+                                      onRef={(el) => {
+                                        if (el) groupRemoteVideoRefs.current.set(userId, el);
+                                      }}
                                     />
                                   ) : (
                                     <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(userId) }}>
@@ -682,31 +760,16 @@ const CallOverlay: React.FC = () => {
                                     </div>
                                   )}
                                   <div className={styles.groupTileLabel}>
-                                    {participant?.name || 'Participant'} {isUserMuted && '🔇'}
+                                    {isUserScreenSharing && '💻 '}{participant?.name || 'Participant'} {isUserScreenSharing && '(Sharing Screen)'} {groupCallHandRaisedStates[userId] && '🖐️'} {groupCallFootRaisedStates[userId] && '🦶'} {isUserMuted && '🔇'}
                                   </div>
-                                  <audio
-                                    ref={(el) => {
-                                      if (el && el.srcObject !== stream) el.srcObject = stream;
-                                    }}
-                                    autoPlay
-                                    playsInline
-                                    style={{ display: 'none' }}
-                                  />
+                                  <RemoteAudioElement stream={stream} />
                                 </div>
                               );
                             })}
 
                             {/* Background audio tracks to keep overflow video participants audible */}
                             {overflowRemote.map(([userId, stream]) => (
-                              <audio
-                                key={`audio-bg-vid-${userId}`}
-                                ref={(el) => {
-                                  if (el && el.srcObject !== stream) el.srcObject = stream;
-                                }}
-                                autoPlay
-                                playsInline
-                                style={{ display: 'none' }}
-                              />
+                              <RemoteAudioElement key={`audio-bg-vid-${userId}`} stream={stream} />
                             ))}
 
                             {/* +N Overflow tile */}
@@ -731,19 +794,10 @@ const CallOverlay: React.FC = () => {
                 <div className={styles.groupAudioCenter}>
                   {/* Background audio tracks to ensure overflow participants are audible */}
                   {activeGroupCall.participants.map((p) => {
-                    const hasStream = groupRemoteStreams.has(p.userId);
-                    if (!hasStream) return null;
+                    const stream = groupRemoteStreams.get(p.userId);
+                    if (!stream) return null;
                     return (
-                      <audio
-                        key={`audio-bg-${p.userId}`}
-                        ref={(el) => {
-                          const stream = groupRemoteStreams.get(p.userId);
-                          if (el && stream && el.srcObject !== stream) el.srcObject = stream;
-                        }}
-                        autoPlay
-                        playsInline
-                        style={{ display: 'none' }}
-                      />
+                      <RemoteAudioElement key={`audio-bg-${p.userId}`} stream={stream} />
                     );
                   })}
 
@@ -931,10 +985,19 @@ const CallOverlay: React.FC = () => {
               </button>
             )}
 
+            {/* Fullscreen Toggle Button */}
+            <button
+              className={isFullscreen ? styles.videoBtnActive : styles.videoBtn}
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+            >
+              {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+            </button>
+
             {/* Hand Raise */}
             <button
               className={isHandRaised ? styles.videoBtnActive : styles.videoBtn}
-              onClick={toggleHandRaise}
+              onClick={() => setRaiseConfirmModal({ type: 'hand', action: isHandRaised ? 'lower' : 'raise' })}
               title={isHandRaised ? 'Lower Hand' : 'Raise Hand'}
               style={isHandRaised ? { backgroundColor: 'rgba(250, 204, 21, 0.2)', color: '#facc15' } : {}}
             >
@@ -944,7 +1007,7 @@ const CallOverlay: React.FC = () => {
             {/* Foot Raise */}
             <button
               className={isFootRaised ? styles.videoBtnActive : styles.videoBtn}
-              onClick={toggleFootRaise}
+              onClick={() => setRaiseConfirmModal({ type: 'foot', action: isFootRaised ? 'lower' : 'raise' })}
               title={isFootRaised ? 'Lower Foot' : 'Raise Foot'}
               style={isFootRaised ? { backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#a855f7' } : {}}
             >
@@ -1106,6 +1169,7 @@ const CallOverlay: React.FC = () => {
                       <div className={styles.participantMeta}>
                         <span className={styles.participantName}>
                           You
+                          {isGroupScreenSharing && <span className={styles.screenShareBadge} title="Sharing Screen">💻 Sharing Screen</span>}
                           {isHandRaised && <span className={styles.raiseIndicator} title="Hand Raised">🖐️</span>}
                           {isFootRaised && <span className={styles.raiseIndicator} title="Foot Raised">🦶</span>}
                         </span>
@@ -1129,8 +1193,13 @@ const CallOverlay: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Remote Rows — sorted: hand-raised first, then live connected, then others */}
+                  {/* Remote Rows — sorted: screen sharing first, hand-raised next, then live connected, then others */}
                   {[...(activeGroupCall.participants || [])].sort((a, b) => {
+                    const aSharing = groupCallScreenSharingStates[a.userId] || false;
+                    const bSharing = groupCallScreenSharingStates[b.userId] || false;
+                    if (aSharing && !bSharing) return -1;
+                    if (!aSharing && bSharing) return 1;
+
                     const aHandRaised = groupCallHandRaisedStates[a.userId] || false;
                     const bHandRaised = groupCallHandRaisedStates[b.userId] || false;
                     const aFootRaised = groupCallFootRaisedStates[a.userId] || false;
@@ -1148,6 +1217,7 @@ const CallOverlay: React.FC = () => {
                   }).map((p) => {
                     const isMuted = groupMutedUserIds.has(p.userId);
                     const hasStream = groupRemoteStreams.has(p.userId);
+                    const isSharingScreen = groupCallScreenSharingStates[p.userId] || false;
                     const pHandRaised = groupCallHandRaisedStates[p.userId] || false;
                     const pFootRaised = groupCallFootRaisedStates[p.userId] || false;
                     const isAdmin = myGroupRole === 'CREATOR' || myGroupRole === 'ADMIN' || myGroupRole === 'MODERATOR';
@@ -1173,6 +1243,7 @@ const CallOverlay: React.FC = () => {
                           <div className={styles.participantMeta}>
                             <span className={styles.participantName}>
                               {p.name}
+                              {isSharingScreen && <span className={styles.screenShareBadge} title="Sharing Screen">💻 Sharing Screen</span>}
                               {pHandRaised && <span className={styles.raiseIndicator} title="Hand Raised">🖐️</span>}
                               {pFootRaised && <span className={styles.raiseIndicator} title="Foot Raised">🦶</span>}
                             </span>
@@ -1270,6 +1341,49 @@ const CallOverlay: React.FC = () => {
                     }}
                   >
                     Confirm Mute
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Hand/Foot Raise Confirmation Modal */}
+          {raiseConfirmModal && (
+            <div className={styles.confirmModalOverlay} onClick={() => setRaiseConfirmModal(null)}>
+              <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                <div style={{ fontSize: '42px', marginBottom: '12px' }}>
+                  {raiseConfirmModal.type === 'hand' ? '🖐️' : '🦶'}
+                </div>
+                <h3 className={styles.confirmTitle} style={{ color: '#ffffff' }}>
+                  {raiseConfirmModal.action === 'raise'
+                    ? `Raise your ${raiseConfirmModal.type === 'hand' ? 'Hand' : 'Foot'}?`
+                    : `Lower your ${raiseConfirmModal.type === 'hand' ? 'Hand' : 'Foot'}?`}
+                </h3>
+                <p className={styles.confirmMessage}>
+                  {raiseConfirmModal.action === 'raise'
+                    ? `All participants will see that you have raised your ${raiseConfirmModal.type}.`
+                    : `This will remove your raised ${raiseConfirmModal.type} status.`}
+                </p>
+                <div className={styles.confirmActions}>
+                  <button
+                    className={styles.confirmCancelBtn}
+                    onClick={() => setRaiseConfirmModal(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className={styles.confirmSubmitBtn}
+                    style={{ background: raiseConfirmModal.type === 'hand' ? '#f59e0b' : '#a855f7' }}
+                    onClick={() => {
+                      if (raiseConfirmModal.type === 'hand') {
+                        toggleHandRaise();
+                      } else {
+                        toggleFootRaise();
+                      }
+                      setRaiseConfirmModal(null);
+                    }}
+                  >
+                    Confirm
                   </button>
                 </div>
               </div>

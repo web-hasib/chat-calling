@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import styles from './page.module.css';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Home() {
   const { login, signup, error, clearError, loading } = useAuth();
@@ -12,6 +13,7 @@ export default function Home() {
   
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -90,15 +92,26 @@ export default function Home() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label}>Password</label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); clearError(); }}
-                  className={styles.input}
-                  required
-                  disabled={loading}
-                />
+                <div className={styles.passwordWrapper}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); clearError(); }}
+                    className={styles.passwordInput}
+                    required
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    className={styles.passwordToggle}
+                    onClick={() => setShowPassword(!showPassword)}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -145,16 +158,27 @@ export default function Home() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label}>Password</label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); clearError(); }}
-                  className={styles.input}
-                  required
-                  minLength={6}
-                  disabled={loading}
-                />
+                <div className={styles.passwordWrapper}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); clearError(); }}
+                    className={styles.passwordInput}
+                    required
+                    minLength={6}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    className={styles.passwordToggle}
+                    onClick={() => setShowPassword(!showPassword)}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             </>
           )}

@@ -696,7 +696,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('group-call-media-state')
   handleGroupCallMediaState(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; videoEnabled: boolean; audioEnabled: boolean; handRaised?: boolean; footRaised?: boolean }
+    @MessageBody() data: { conversationId: string; videoEnabled: boolean; audioEnabled: boolean; handRaised?: boolean; footRaised?: boolean; isScreenSharing?: boolean }
   ) {
     const userId = client.data.userId;
     if (!userId) return;
@@ -715,6 +715,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           audioEnabled: data.audioEnabled,
           handRaised: data.handRaised,
           footRaised: data.footRaised,
+          isScreenSharing: data.isScreenSharing,
           conversationId: data.conversationId,
         });
       }
