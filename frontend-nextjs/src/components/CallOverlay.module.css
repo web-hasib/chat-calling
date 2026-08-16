@@ -1,3 +1,7 @@
+/* ═══════════════════════════════════════════════════════════ */
+/* CallOverlay Core & 1:1 Calling Styles                       */
+/* ═══════════════════════════════════════════════════════════ */
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -82,7 +86,7 @@
   background-color: var(--accent-danger);
 }
 
-/* Video Calling Styles */
+/* ─── 1:1 Video Calling Styles ─── */
 .videoContainer {
   position: fixed;
   inset: 0;
@@ -111,7 +115,7 @@
   box-shadow: var(--shadow-lg);
   background: #111;
   z-index: 10;
-  touch-action: none; /* Required for touch drag gestures */
+  touch-action: none;
   cursor: grab;
 }
 
@@ -170,7 +174,6 @@
   border-radius: var(--radius-full);
 }
 
-/* Call timer overlay styles */
 .timerOverlay {
   position: absolute;
   top: 24px;
@@ -196,7 +199,9 @@
   animation: pulse-ring 1s infinite;
 }
 
-/* ─── Group Call Styles ─── */
+/* ═══════════════════════════════════════════════════════════ */
+/* Group Call Core Layout & Grid                              */
+/* ═══════════════════════════════════════════════════════════ */
 
 .groupCallContainer {
   position: fixed;
@@ -272,33 +277,13 @@
   box-sizing: border-box;
 }
 
-.groupGrid2 {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr;
-}
+.groupGrid2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.groupGrid4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.groupGrid6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
 
 @media (max-width: 768px) {
-  .groupGrid2 {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
-  }
-}
-
-.groupGrid4 {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-.groupGrid6 {
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-@media (max-width: 768px) {
-  .groupGrid6 {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
-  }
+  .groupGrid2 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  .groupGrid6 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
 }
 
 .groupVideoTile {
@@ -313,24 +298,6 @@
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
 
-@media (max-width: 768px) {
-  .groupLocalVideoTile {
-    position: absolute !important;
-    bottom: 80px;
-    right: 16px;
-    width: 100px !important;
-    height: 140px !important;
-    z-index: 90;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    cursor: grab;
-    touch-action: none;
-  }
-  .groupLocalVideoTile:active {
-    cursor: grabbing;
-  }
-}
-
 .groupVideoEl {
   width: 100%;
   height: 100%;
@@ -343,7 +310,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  background: #2f3136; /* Discord style solid dark background */
+  background: #2f3136;
 }
 
 .groupPlaceholderAvatar {
@@ -385,7 +352,9 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* ─── Ephemeral meeting features ─── */
+/* ═══════════════════════════════════════════════════════════ */
+/* Ephemeral Chat & Emoji Reactions                           */
+/* ═══════════════════════════════════════════════════════════ */
 
 .emojiContainer {
   position: absolute;
@@ -397,28 +366,47 @@
 
 .flyingEmoji {
   position: absolute;
-  bottom: -50px;
-  font-size: 40px;
-  animation: flyUp 2.5s ease-in-out forwards;
+  bottom: -60px;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  animation-name: cinematicFlyUp;
+  animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity, bottom;
 }
 
-@keyframes flyUp {
+@keyframes cinematicFlyUp {
   0% {
-    bottom: -50px;
+    bottom: -60px;
     opacity: 0;
-    transform: scale(0.5) translateX(0);
+    transform: translateY(0) scale(0.3) rotate(0deg);
   }
-  15% {
+  8% {
     opacity: 1;
-    transform: scale(1.2);
+    transform: translateY(-30px) scale(1.1) rotate(8deg);
+  }
+  25% {
+    opacity: 0.95;
+    transform: translateY(-100px) scale(1) rotate(-6deg) translateX(18px);
   }
   50% {
-    transform: scale(1) translateX(30px);
+    opacity: 0.9;
+    transform: translateY(-220px) scale(1.02) rotate(10deg) translateX(-20px);
+  }
+  75% {
+    opacity: 0.85;
+    transform: translateY(-360px) scale(0.98) rotate(-5deg) translateX(14px);
+  }
+  90% {
+    opacity: 0.6;
+    transform: translateY(-480px) scale(0.9) rotate(8deg) translateX(-8px);
   }
   100% {
-    bottom: 85%;
+    bottom: 96%;
     opacity: 0;
-    transform: scale(0.8) translateX(-30px);
+    transform: translateY(-560px) scale(0.7) rotate(12deg) translateX(0px);
   }
 }
 
@@ -433,15 +421,6 @@
   animation: slideLeft 0.3s ease;
 }
 
-@media (max-width: 600px) {
-  .chatPanel {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 100%;
-  }
-}
-
 @keyframes slideLeft {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
@@ -449,7 +428,7 @@
 
 .chatPanelHeader {
   padding: 16px;
-  border-b: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -596,19 +575,19 @@
   transform: scale(1.3);
 }
 
-@media (max-width: 480px) {
-  .emojiPickerTray {
-    padding: 4px 8px;
-    gap: 4px;
-    bottom: 70px;
-  }
-  .trayEmojiBtn {
-    font-size: 20px;
-    padding: 2px;
-  }
+.customEmojiPickerWrapper {
+  position: absolute;
+  bottom: 50px;
+  right: -50px;
+  z-index: 120;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-/* ─── Pinned Focused View Styles ─── */
+/* ═══════════════════════════════════════════════════════════ */
+/* Spotlight Focused View & Thumbnail Strip                   */
+/* ═══════════════════════════════════════════════════════════ */
 
 .focusedSpeakerLayout {
   display: flex;
@@ -695,7 +674,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  background: #2f3136; /* Discord style solid dark background */
+  background: #2f3136;
 }
 
 .thumbnailPlaceholderAvatar {
@@ -721,47 +700,31 @@
   white-space: nowrap;
 }
 
-.customEmojiPickerWrapper {
-  position: absolute;
-  bottom: 50px;
-  right: -50px;
-  z-index: 120;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-@media (max-width: 480px) {
-  .customEmojiPickerWrapper {
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 60px;
-  }
-}
-
-.groupLocalVideoTile {
+.groupFloatingPip {
   position: absolute !important;
-  bottom: 100px; /* positioned above the bottom control bar */
+  bottom: 100px;
   right: 20px;
-  width: 150px !important;
-  height: 110px !important;
-  z-index: 150 !important; /* float on top of remote videos and controls */
+  width: 160px !important;
+  height: 120px !important;
+  z-index: 150 !important;
   border: 2px solid rgba(255, 255, 255, 0.25);
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   cursor: grab;
   touch-action: none;
 }
 
-.groupLocalVideoTile:active {
+.groupFloatingPip:active {
   cursor: grabbing;
 }
 
-/* ─── Toast Notifications ─── */
+/* ═══════════════════════════════════════════════════════════ */
+/* Toast Notifications & Participants Modal                   */
+/* ═══════════════════════════════════════════════════════════ */
+
 .toastContainer {
   position: absolute;
-  top: 130px; /* Below the top thumbnail strip if present */
+  top: 130px;
   right: 20px;
   display: flex;
   flex-direction: column;
@@ -819,36 +782,10 @@
 }
 
 @keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
-/* ─── Mobile floating chat panel ─── */
-@media (max-width: 768px) {
-  .chatPanel {
-    position: absolute !important;
-    top: 10px;
-    right: 10px;
-    bottom: 80px;
-    width: calc(100% - 20px) !important;
-    max-width: 360px;
-    height: auto !important;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
-    z-index: 1000 !important;
-    background: rgba(16, 18, 27, 0.96) !important;
-    backdrop-filter: blur(16px);
-  }
-}
-
-/* ─── Participants Modal Overlay ─── */
 .participantsModalOverlay {
   position: fixed;
   inset: 0;
@@ -982,20 +919,9 @@
   margin-left: 6px;
 }
 
-.roleCreator {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-}
-
-.roleAdmin {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-}
-
-.roleMember {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.6);
-}
+.roleCreator { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.roleAdmin { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.roleMember { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.6); }
 
 .participantControls {
   display: flex;
@@ -1045,11 +971,6 @@
   transform: translateY(-1px);
 }
 
-.adminMuteAllBtn:active {
-  transform: translateY(0);
-}
-
-/* ─── +N Overflow Pills / Tiles ─── */
 .overflowAvatar {
   width: 68px;
   height: 68px;
@@ -1075,7 +996,6 @@
   color: white;
 }
 
-/* For video view overflow */
 .videoOverflowTile {
   composes: groupVideoTile;
   background: rgba(16, 18, 27, 0.8) !important;
@@ -1108,19 +1028,6 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-@keyframes scaleIn {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* ═══ Participant Row Clickable ═══ */
-
 .participantRowClickable {
   cursor: pointer;
   transition: background 0.15s ease;
@@ -1130,14 +1037,10 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* ═══ Hand/Foot Raised Row Highlight ═══ */
-
 .participantRowRaised {
   background: rgba(250, 204, 21, 0.06) !important;
   border-left: 3px solid rgba(250, 204, 21, 0.5);
 }
-
-/* ═══ Raise Indicator (next to name) ═══ */
 
 .raiseIndicator {
   margin-left: 4px;
@@ -1154,8 +1057,6 @@
   75% { transform: rotate(0deg); }
 }
 
-/* ═══ Live Indicator (green dot on avatar) ═══ */
-
 .liveIndicator {
   position: absolute;
   bottom: 2px;
@@ -1171,14 +1072,10 @@
   50% { opacity: 0.4; }
 }
 
-/* ═══ Moderator Role Badge ═══ */
-
 .roleModerator {
   background: rgba(168, 85, 247, 0.12);
   color: #a855f7;
 }
-
-/* ═══ Admin Per-User Mute/Unmute Button ═══ */
 
 .adminMuteUserBtn {
   width: 26px;
@@ -1200,8 +1097,6 @@
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.3);
 }
-
-/* ═══ Thumbnail Overflow Tile (Focused view top row) ═══ */
 
 .thumbnailTileOverflow {
   composes: thumbnailTile;
@@ -1237,25 +1132,10 @@
   letter-spacing: 0.5px;
 }
 
-@media (max-width: 480px) {
-  .videoControls {
-    bottom: 20px !important;
-    gap: 8px !important;
-    padding: 8px 12px !important;
-    max-width: 95% !important;
-    box-sizing: border-box !important;
-  }
-  .videoBtn, .videoBtnEnd, .videoBtnActive, .videoBtnMuted {
-    width: 38px !important;
-    height: 38px !important;
-  }
-  .videoControls svg {
-    width: 16px !important;
-    height: 16px !important;
-  }
-}
+/* ═══════════════════════════════════════════════════════════ */
+/* Modals, Settings & Confirmation                            */
+/* ═══════════════════════════════════════════════════════════ */
 
-/* ═══ Confirmation Modal ═══ */
 .confirmModalOverlay {
   position: fixed;
   inset: 0;
@@ -1332,120 +1212,145 @@
   background: #dc2626;
 }
 
+/* ─── Device Settings Modal ─── */
+.settingsModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: rgba(8, 10, 15, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.settingsModal {
+  background: linear-gradient(135deg, rgba(24, 28, 42, 0.95), rgba(15, 18, 28, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  width: 90%;
+  max-width: 460px;
+  padding: 28px;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  color: white;
+  animation: scaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settingsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.settingsTitle {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.settingsGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.settingsLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settingsSelect {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.settingsSelect:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.settingsSelect:focus {
+  border-color: #6366f1;
+  background: rgba(30, 36, 56, 0.9);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+.settingsSelect option {
+  background: #151824;
+  color: white;
+  padding: 10px;
+}
+
+/* ─── Active Speaker Glow & WebRTC Network Badge ─── */
+.speakingGlow {
+  box-shadow: 0 0 0 3px #10b981, 0 0 20px rgba(16, 185, 129, 0.45) !important;
+  border-color: #10b981 !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.speakingWaveDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: audioPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes audioPulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #10b981; }
+}
+
+.networkQualityBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(10, 12, 16, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.qualityDotGood { width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; }
+.qualityDotFair { width: 6px; height: 6px; border-radius: 50%; background-color: #f59e0b; }
+.qualityDotPoor { width: 6px; height: 6px; border-radius: 50%; background-color: #ef4444; }
+
 /* ═══════════════════════════════════════════════════════════ */
-/* LIGHT MODE STYLES                                           */
-/* ═══════════════════════════════════════════════════════════ */
-
-.groupCallContainer.lightMode,
-.videoContainer.lightMode {
-  background: #eef2f6 !important;
-  color: #1f2937 !important;
-}
-
-.lightMode .chatPanel {
-  background: #ffffff !important;
-  border-left-color: #e5e7eb !important;
-  color: #1f2937 !important;
-}
-
-.lightMode .chatPanelHeader {
-  color: #111827 !important;
-  border-bottom-color: #e5e7eb !important;
-}
-
-.lightMode .chatBubble {
-  background: #f3f4f6 !important;
-  border-color: #e5e7eb !important;
-}
-
-.lightMode .chatBubbleSender {
-  color: #4f46e5 !important;
-}
-
-.lightMode .chatBubbleTime {
-  color: #6b7280 !important;
-}
-
-.lightMode .chatBubbleText {
-  color: #1f2937 !important;
-}
-
-.lightMode .chatPanelInput {
-  background: #f9fafb !important;
-  border-color: #d1d5db !important;
-  color: #111827 !important;
-}
-
-.lightMode .groupVideoTile {
-  background: #e2e8f0 !important;
-  border-color: #cbd5e1 !important;
-}
-
-.lightMode .groupTileLabel {
-  background: rgba(255, 255, 255, 0.9) !important;
-  color: #111827 !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
-.lightMode .thumbnailStrip {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-bottom-color: #e2e8f0 !important;
-}
-
-.lightMode .thumbnailTile {
-  background: #e2e8f0 !important;
-  border-color: #cbd5e1 !important;
-}
-
-.lightMode .thumbnailLabel {
-  background: rgba(255, 255, 255, 0.9) !important;
-  color: #111827 !important;
-}
-
-.lightMode .timerOverlay {
-  background: rgba(255, 255, 255, 0.9) !important;
-  color: #111827 !important;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.lightMode .videoControls {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
-}
-
-.lightMode .videoBtn {
-  background: rgba(0, 0, 0, 0.06) !important;
-  color: #374151 !important;
-}
-
-.lightMode .videoBtn:hover {
-  background: rgba(0, 0, 0, 0.12) !important;
-}
-
-.lightMode .participantsModal {
-  background: #ffffff !important;
-  color: #111827 !important;
-  border-color: #e5e7eb !important;
-}
-
-.lightMode .participantsTitle {
-  color: #111827 !important;
-}
-
-.lightMode .participantRow {
-  background: #f9fafb !important;
-  border-color: #e5e7eb !important;
-}
-
-.lightMode .participantName {
-  color: #111827 !important;
-}
-
-/* ═══════════════════════════════════════════════════════════ */
-/* AUTO-HIDE CONTROLS STYLES                                   */
+/* Controls Auto-hide & Transitions                           */
 /* ═══════════════════════════════════════════════════════════ */
 
 .videoControls,
@@ -1459,28 +1364,11 @@
   pointer-events: none !important;
 }
 
-.videoControls.controlsHidden {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transform: translate(-50%, 24px) !important;
-}
+.videoControls.controlsHidden { transform: translate(-50%, 24px) !important; }
+.timerOverlay.controlsHidden { transform: translateY(-24px) !important; }
+.thumbnailStrip.controlsHidden { transform: translateY(-100%) !important; }
 
-.timerOverlay.controlsHidden {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transform: translateY(-24px) !important;
-}
-
-.thumbnailStrip.controlsHidden {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transform: translateY(-100%) !important;
-}
-
-/* ═══════════════════════════════════════════════════════════ */
-/* SCROLLBAR CLEANUP & MOBILE OPTIMIZATIONS                    */
-/* ═══════════════════════════════════════════════════════════ */
-
+/* Hide Scrollbars */
 .thumbnailStrip::-webkit-scrollbar,
 .videoControls::-webkit-scrollbar,
 .groupMediaArea::-webkit-scrollbar,
@@ -1498,6 +1386,41 @@
   scrollbar-width: none !important;
 }
 
+/* ═══════════════════════════════════════════════════════════ */
+/* Light Mode Support                                         */
+/* ═══════════════════════════════════════════════════════════ */
+
+.groupCallContainer.lightMode,
+.videoContainer.lightMode {
+  background: #eef2f6 !important;
+  color: #1f2937 !important;
+}
+
+.lightMode .chatPanel { background: #ffffff !important; border-left-color: #e5e7eb !important; color: #1f2937 !important; }
+.lightMode .chatPanelHeader { color: #111827 !important; border-bottom-color: #e5e7eb !important; }
+.lightMode .chatBubble { background: #f3f4f6 !important; border-color: #e5e7eb !important; }
+.lightMode .chatBubbleSender { color: #4f46e5 !important; }
+.lightMode .chatBubbleTime { color: #6b7280 !important; }
+.lightMode .chatBubbleText { color: #1f2937 !important; }
+.lightMode .chatPanelInput { background: #f9fafb !important; border-color: #d1d5db !important; color: #111827 !important; }
+.lightMode .groupVideoTile { background: #e2e8f0 !important; border-color: #cbd5e1 !important; }
+.lightMode .groupTileLabel { background: rgba(255, 255, 255, 0.9) !important; color: #111827 !important; border-color: rgba(0, 0, 0, 0.1) !important; }
+.lightMode .thumbnailStrip { background: rgba(255, 255, 255, 0.9) !important; border-bottom-color: #e2e8f0 !important; }
+.lightMode .thumbnailTile { background: #e2e8f0 !important; border-color: #cbd5e1 !important; }
+.lightMode .thumbnailLabel { background: rgba(255, 255, 255, 0.9) !important; color: #111827 !important; }
+.lightMode .timerOverlay { background: rgba(255, 255, 255, 0.9) !important; color: #111827 !important; border: 1px solid rgba(0, 0, 0, 0.08); }
+.lightMode .videoControls { background: rgba(255, 255, 255, 0.92) !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; }
+.lightMode .videoBtn { background: rgba(0, 0, 0, 0.06) !important; color: #374151 !important; }
+.lightMode .videoBtn:hover { background: rgba(0, 0, 0, 0.12) !important; }
+.lightMode .participantsModal { background: #ffffff !important; color: #111827 !important; border-color: #e5e7eb !important; }
+.lightMode .participantsTitle { color: #111827 !important; }
+.lightMode .participantRow { background: #f9fafb !important; border-color: #e5e7eb !important; }
+.lightMode .participantName { color: #111827 !important; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/* Mobile Responsive Media Queries (Merged & Optimized)       */
+/* ═══════════════════════════════════════════════════════════ */
+
 @media (max-width: 768px) {
   .videoControls {
     bottom: max(16px, env(safe-area-inset-bottom)) !important;
@@ -1511,7 +1434,6 @@
     overflow: visible !important;
     background: rgba(14, 17, 24, 0.88) !important;
     backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
   }
 
@@ -1520,7 +1442,6 @@
     height: 42px !important;
     min-width: 42px !important;
     flex-shrink: 0 !important;
-    transition: transform 0.1s ease !important;
   }
 
   .videoBtn:active {
@@ -1564,8 +1485,6 @@
     border-radius: 20px !important;
     background: rgba(10, 12, 16, 0.85) !important;
     backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
   }
 
   .localVideo {
@@ -1574,7 +1493,31 @@
     bottom: calc(120px + env(safe-area-inset-bottom)) !important;
     right: 12px !important;
     border-radius: 16px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .groupLocalVideoTile {
+    position: absolute !important;
+    bottom: 80px;
+    right: 16px;
+    width: 100px !important;
+    height: 140px !important;
+    z-index: 90;
+  }
+
+  .chatPanel {
+    position: absolute !important;
+    top: 10px;
+    right: 10px;
+    bottom: 80px;
+    width: calc(100% - 20px) !important;
+    max-width: 360px;
+    height: auto !important;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    z-index: 1000 !important;
+    background: rgba(16, 18, 27, 0.96) !important;
+    backdrop-filter: blur(16px);
   }
 
   .participantsModalOverlay {
@@ -1588,10 +1531,6 @@
     max-height: 82vh !important;
     margin: 0 !important;
     animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    position: relative !important;
-    background: rgba(18, 21, 31, 0.96) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
   }
 
   .participantsModal::before {
@@ -1609,11 +1548,25 @@
   }
 }
 
+@media (max-width: 480px) {
+  .emojiPickerTray {
+    padding: 4px 8px;
+    gap: 4px;
+    bottom: 70px;
+  }
+  .trayEmojiBtn {
+    font-size: 20px;
+    padding: 2px;
+  }
+  .customEmojiPickerWrapper {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 60px;
+  }
+}
+
 @keyframes slideUpSheet {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
