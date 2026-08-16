@@ -219,17 +219,17 @@ export function MessageInput({
 
       {/* Remote Typing Draft Preview (Above Input Box) */}
       {recipientTypingText && recipientTypingText.trim().length > 0 && (
-        <div className="px-4 py-2 bg-[#121722] border-t border-[var(--border-color)] flex items-center justify-between text-xs animate-in slide-in-from-bottom-1 duration-150">
+        <div className="px-4 py-2 bg-[var(--bg-tertiary)] border-t border-[var(--border-color)] flex items-center justify-between text-xs animate-in slide-in-from-bottom-1 duration-150">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className="w-2 h-2 rounded-full bg-purple-500 animate-ping shrink-0" />
-            <span className="font-semibold text-purple-400 shrink-0">
+            <span className="font-semibold text-purple-500 shrink-0">
               {recipientName} is typing:
             </span>
-            <span className="text-gray-200 italic truncate font-normal">
+            <span className="text-[var(--text-primary)] italic truncate font-normal">
               "{recipientTypingText}"
             </span>
           </div>
-          <span className="text-[10px] text-gray-400 shrink-0 uppercase tracking-wider ml-2 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+          <span className="text-[10px] text-[var(--text-secondary)] shrink-0 uppercase tracking-wider ml-2 bg-[var(--bg-secondary)] px-2 py-0.5 rounded border border-[var(--border-color)]">
             Live Preview
           </span>
         </div>
@@ -292,7 +292,7 @@ export function MessageInput({
           />
 
           {showAttachmentMenu && (
-            <div className="absolute bottom-12 left-0 z-[2000] w-60 bg-[#161b26] border border-[#242c3d] rounded-2xl shadow-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
+            <div className="absolute bottom-12 left-0 z-[2000] w-60 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
 
               {/* Option 1: Upload File / Image */}
               <button
@@ -301,14 +301,14 @@ export function MessageInput({
                   setShowAttachmentMenu(false);
                   fileInputRef.current?.click();
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none text-left w-full cursor-pointer"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors border-none text-left w-full cursor-pointer"
               >
-                <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0">
                   <ImageIcon size={16} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white">Upload Image / File</span>
-                  <span className="text-[10px] text-gray-400">Choose photos or files</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-[var(--text-primary)]">Upload Image / File</span>
+                  <span className="text-[10px] text-[var(--text-secondary)]">Choose photos or files</span>
                 </div>
               </button>
 
@@ -319,14 +319,14 @@ export function MessageInput({
                   setShowAttachmentMenu(false);
                   setShowCameraModal(true);
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none text-left w-full cursor-pointer"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors border-none text-left w-full cursor-pointer"
               >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
                   <Camera size={16} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white">Capture Photo</span>
-                  <span className="text-[10px] text-gray-400">Take snap with camera</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-[var(--text-primary)]">Capture Photo</span>
+                  <span className="text-[10px] text-[var(--text-secondary)]">Take snap with camera</span>
                 </div>
               </button>
 
@@ -337,14 +337,14 @@ export function MessageInput({
                   setShowAttachmentMenu(false);
                   setShowRichEmailModal(true);
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none text-left w-full cursor-pointer"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors border-none text-left w-full cursor-pointer"
               >
-                <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0">
                   <Mail size={16} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white">Formatted Email</span>
-                  <span className="text-[10px] text-gray-400">Rich Tiptap message editor</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-[var(--text-primary)]">Formatted Email</span>
+                  <span className="text-[10px] text-[var(--text-secondary)]">Rich Tiptap message editor</span>
                 </div>
               </button>
             </div>

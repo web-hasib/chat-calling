@@ -53,14 +53,18 @@ export function MediaPreviewModal({
   startDrawing, draw, stopDrawing, clearDrawing,
 }: MediaPreviewModalProps) {
   return (
-    <div className="fixed inset-0 z-[5000] flex flex-col items-center justify-between text-white p-0 bg-gradient-to-r from-indigo-500/10 to-transparent bg-[rgba(8,9,16,0.94)] animate-in fade-in-0 duration-200">
+    <div className="fixed inset-0 z-[5000] flex flex-col items-center justify-between text-[var(--text-primary)] p-0 bg-black/80 backdrop-blur-xl animate-in fade-in-0 duration-200">
       {/* Top Bar (Close, Title, Editor Toolbar Tools) */}
-      <div className="h-[72px] px-6 border-b border-white/10 flex items-center justify-between w-full bg-white/[0.03]">
+      <div className="h-[72px] px-6 border-b border-[var(--border-color)] flex items-center justify-between w-full bg-[var(--bg-secondary)]/85 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button className="bg-transparent border-none text-white cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center" onClick={onClose} title="Cancel">
+          <button
+            className="bg-transparent border-none text-[var(--text-primary)] cursor-pointer p-2 rounded-full hover:bg-[var(--bg-tertiary)] transition-colors flex items-center justify-center"
+            onClick={onClose}
+            title="Cancel"
+          >
             <X size={22} />
           </button>
-          <span className="text-sm font-semibold tracking-wide">
+          <span className="text-sm font-semibold tracking-wide text-[var(--text-primary)]">
             {pendingMediaItems[activeMediaIndex]?.file.type.startsWith('image/')
               ? `Image ${activeMediaIndex + 1} of ${pendingMediaItems.length}`
               : 'Document Preview'}
@@ -69,10 +73,10 @@ export function MediaPreviewModal({
 
         {/* Magic Toolbar Tools */}
         {pendingMediaItems[activeMediaIndex]?.file.type.startsWith('image/') && (
-          <div className="flex items-center gap-3 bg-white/[0.03] px-3.5 py-1.5 rounded-full border border-white/10">
+          <div className="flex items-center gap-3 bg-[var(--bg-tertiary)] px-3.5 py-1.5 rounded-full border border-[var(--border-color)]">
             <button
               type="button"
-              className="bg-transparent border-none text-white cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors"
+              className="bg-transparent border-none text-[var(--text-primary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors"
               onClick={() => {
                 setMediaRotations((prev) => ({
                   ...prev,
@@ -86,7 +90,7 @@ export function MediaPreviewModal({
 
             <button
               type="button"
-              className={`bg-transparent border-none text-white cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors ${showFilterPicker ? 'text-[var(--accent-primary)] scale-110' : ''}`}
+              className={`bg-transparent border-none text-[var(--text-primary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors ${showFilterPicker ? 'text-[var(--accent-primary)] scale-110' : ''}`}
               onClick={() => {
                 setShowFilterPicker(!showFilterPicker);
                 setIsDrawMode(false);
@@ -98,7 +102,7 @@ export function MediaPreviewModal({
 
             <button
               type="button"
-              className={`bg-transparent border-none text-white cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors ${isDrawMode ? 'text-[var(--accent-primary)] scale-110' : ''}`}
+              className={`bg-transparent border-none text-[var(--text-primary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors ${isDrawMode ? 'text-[var(--accent-primary)] scale-110' : ''}`}
               onClick={() => {
                 setIsDrawMode(!isDrawMode);
                 setShowFilterPicker(false);
@@ -109,14 +113,23 @@ export function MediaPreviewModal({
             </button>
 
             {isDrawMode && (
-              <button type="button" className="bg-transparent border-none text-white cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors" onClick={clearDrawing} title="Clear Drawings">
+              <button
+                type="button"
+                className="bg-transparent border-none text-[var(--text-primary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-[var(--accent-primary)] transition-colors"
+                onClick={clearDrawing}
+                title="Clear Drawings"
+              >
                 <Undo2 size={18} />
               </button>
             )}
 
             <button
               type="button"
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-semibold cursor-pointer transition-all ${qualityMode === 'hd' ? 'bg-indigo-500/30 border-indigo-400 text-indigo-200 shadow-[0_0_14px_rgba(99,102,241,0.45)]' : 'bg-white/10 border-white/10 text-white/50 hover:bg-white/15'}`}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
+                qualityMode === 'hd'
+                  ? 'bg-indigo-500/20 border-indigo-400 text-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]'
+                  : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+              }`}
               onClick={() => setQualityMode((prev) => (prev === 'standard' ? 'hd' : 'standard'))}
               title={
                 qualityMode === 'hd'
@@ -133,7 +146,7 @@ export function MediaPreviewModal({
 
       {/* Color Swatches Popover */}
       {isDrawMode && (
-        <div className="absolute top-[80px] left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[rgba(18,18,28,0.97)] border border-white/10 rounded-lg px-4 py-2.5 z-[1010] backdrop-blur-[16px] shadow-lg">
+        <div className="absolute top-[80px] left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 z-[1010] backdrop-blur-[16px] shadow-2xl">
           {['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#ffffff', '#000000'].map((col) => (
             <div
               key={col}
@@ -142,12 +155,12 @@ export function MediaPreviewModal({
               onClick={() => setDrawColor(col)}
             />
           ))}
-          <div className="w-px h-5 bg-white/15 mx-1" />
+          <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
           {[3, 6, 12, 20].map((size) => (
             <button
               key={size}
               type="button"
-              className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border border-transparent transition-all ${brushSize === size ? 'border-white/40 bg-white/10' : 'hover:bg-white/5'}`}
+              className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border border-transparent transition-all ${brushSize === size ? 'border-[var(--accent-primary)] bg-[var(--bg-tertiary)] text-[var(--accent-primary)]' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}
               onClick={() => setBrushSize(size)}
               title={`Brush Size: ${size}px`}
             >
@@ -165,7 +178,7 @@ export function MediaPreviewModal({
 
       {/* Filter Selector Popover */}
       {showFilterPicker && (
-        <div className="absolute top-[80px] left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[rgba(18,18,28,0.97)] border border-white/10 rounded-lg px-4 py-2.5 z-[1010] backdrop-blur-[16px] shadow-lg">
+        <div className="absolute top-[80px] left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 z-[1010] backdrop-blur-[16px] shadow-2xl">
           {[
             { id: 'none', label: 'Normal' },
             { id: 'grayscale', label: 'B&W' },
@@ -177,10 +190,10 @@ export function MediaPreviewModal({
             <button
               key={f.id}
               type="button"
-              className={`flex flex-col items-center gap-1 bg-white/5 border border-white/10 rounded px-3 py-1.5 text-white/50 text-[11px] font-medium cursor-pointer transition-all ${
+              className={`flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium cursor-pointer transition-all border ${
                 (mediaFilters[activeMediaIndex] || 'none') === f.id
-                  ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white'
-                  : 'hover:bg-white/10 hover:text-white'
+                  ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white font-semibold'
+                  : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]'
               }`}
               onClick={() => {
                 setMediaFilters((prev) => ({ ...prev, [activeMediaIndex]: f.id }));
@@ -199,7 +212,7 @@ export function MediaPreviewModal({
             <img
               src={pendingMediaItems[activeMediaIndex]?.previewUrl}
               alt="Media Preview"
-              className="max-w-full max-h-[65vh] object-contain rounded-md shadow-2xl"
+              className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-2xl border border-white/10"
               style={{
                 transform: `rotate(${mediaRotations[activeMediaIndex] || 0}deg)`,
                 filter:
@@ -238,10 +251,10 @@ export function MediaPreviewModal({
             />
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 p-8 bg-white/10 rounded-lg border border-white/10 text-white">
+          <div className="flex flex-col items-center gap-3 p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] text-[var(--text-primary)] shadow-2xl">
             <Paperclip size={48} className="text-[var(--accent-primary)]" />
-            <span className="text-base font-medium max-w-[280px] truncate">{pendingMediaItems[activeMediaIndex]?.file.name}</span>
-            <span className="text-xs text-white/50">
+            <span className="text-base font-semibold max-w-[280px] truncate">{pendingMediaItems[activeMediaIndex]?.file.name}</span>
+            <span className="text-xs text-[var(--text-secondary)]">
               {(pendingMediaItems[activeMediaIndex]?.file.size / 1024 / 1024).toFixed(2)} MB
             </span>
           </div>
@@ -249,8 +262,8 @@ export function MediaPreviewModal({
       </div>
 
       {/* Footer Column */}
-      <div className="flex flex-col items-center gap-4 p-4 md:px-6 md:pb-6 w-full bg-white/[0.03]">
-        <div className="flex items-center gap-3 w-full max-w-[640px] bg-white/10 border border-white/10 rounded-full pl-[18px] pr-1.5 py-1.5">
+      <div className="flex flex-col items-center gap-4 p-4 md:px-6 md:pb-6 w-full bg-[var(--bg-secondary)]/85 border-t border-[var(--border-color)] backdrop-blur-md">
+        <div className="flex items-center gap-3 w-full max-w-[640px] bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full pl-[18px] pr-1.5 py-1.5 shadow-inner">
           <input
             type="text"
             placeholder="Add a caption..."
@@ -265,11 +278,11 @@ export function MediaPreviewModal({
                 onSend();
               }
             }}
-            className="flex-grow bg-transparent border-none text-white text-sm outline-none placeholder:text-white/40"
+            className="flex-grow bg-transparent border-none text-[var(--text-primary)] text-sm outline-none placeholder:text-[var(--text-secondary)]"
             autoFocus
           />
           <button
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer disabled:opacity-60 transition-opacity bg-[var(--accent-primary)] shrink-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer disabled:opacity-60 transition-opacity bg-[var(--accent-primary)] shrink-0 shadow"
             onClick={onSend}
             disabled={sendingMedia}
             style={activeThemeColor ? { background: activeThemeColor } : undefined}
@@ -284,7 +297,7 @@ export function MediaPreviewModal({
           {pendingMediaItems.map((item, idx) => (
             <div
               key={idx}
-              className={`relative w-[52px] h-[52px] rounded-md overflow-hidden border-2 cursor-pointer shrink-0 transition-transform hover:scale-105 ${idx === activeMediaIndex ? 'border-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-primary)]' : 'border-transparent'}`}
+              className={`relative w-[52px] h-[52px] rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 transition-transform hover:scale-105 ${idx === activeMediaIndex ? 'border-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-primary)]' : 'border-[var(--border-color)]'}`}
               onClick={() => {
                 setActiveMediaIndex(idx);
                 setIsDrawMode(false);
@@ -294,11 +307,13 @@ export function MediaPreviewModal({
               {item.file.type.startsWith('image/') ? (
                 <img src={item.previewUrl} alt={`Thumb ${idx}`} className="w-full h-full object-cover" />
               ) : (
-                <Paperclip size={24} style={{ margin: 'auto' }} />
+                <div className="w-full h-full flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-primary)]">
+                  <Paperclip size={20} />
+                </div>
               )}
               <button
                 type="button"
-                className="absolute top-0.5 right-0.5 bg-black/70 text-white border-none rounded-full w-4 h-4 flex items-center justify-center text-[10px] cursor-pointer"
+                className="absolute top-0.5 right-0.5 bg-black/70 hover:bg-black text-white border-none rounded-full w-4 h-4 flex items-center justify-center text-[10px] cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemoveThumbnail(idx);
@@ -309,7 +324,7 @@ export function MediaPreviewModal({
               </button>
             </div>
           ))}
-          <label className="w-[52px] h-[52px] rounded-md bg-white/5 border border-dashed border-white/40 text-white flex items-center justify-center cursor-pointer shrink-0 hover:bg-white/10 hover:border-white transition-colors" title="Add more photos or files">
+          <label className="w-[52px] h-[52px] rounded-lg bg-[var(--bg-tertiary)] border border-dashed border-[var(--border-color)] text-[var(--text-primary)] flex items-center justify-center cursor-pointer shrink-0 hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors" title="Add more photos or files">
             <Plus size={22} />
             <input
               type="file"

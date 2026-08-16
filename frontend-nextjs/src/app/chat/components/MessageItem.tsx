@@ -66,7 +66,7 @@ export function MessageItem({
         className={`
           absolute -top-7 z-20
           flex items-center gap-0.5
-          bg-[#161b26] border border-[#2e374a]
+          bg-[var(--bg-secondary)] border border-[var(--border-color)]
           rounded-xl px-1.5 py-0.5 shadow-xl
           transition-opacity duration-150
           before:absolute before:-bottom-3 before:left-0 before:right-0 before:h-4 before:content-['']
@@ -541,31 +541,31 @@ function RichEmailCard({
 
   return (
     <div
-      className={`p-4 rounded-2xl max-w-md w-full border border-white/10 shadow-xl overflow-hidden flex flex-col gap-2.5 ${
+      className={`p-4 rounded-2xl max-w-md w-full border shadow-xl overflow-hidden flex flex-col gap-2.5 ${
         isSentByMe
-          ? 'bg-[#1a2336] text-white rounded-br-sm'
-          : 'bg-[#161b26] text-[#f3f4f6] rounded-bl-sm'
+          ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--text-primary)] rounded-br-sm'
+          : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-sm'
       }`}
     >
-      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+      <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-2">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center">
             <Mail size={13} />
           </div>
-          <span className="font-semibold text-xs text-purple-300">Formatted Email</span>
+          <span className="font-semibold text-xs text-purple-400">Formatted Email</span>
         </div>
 
         {/* Remote / Local Copy Button */}
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white border-none cursor-pointer transition-colors"
+          className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] cursor-pointer transition-colors"
           title="Copy Email Content"
         >
           {copied ? (
             <>
-              <Check size={12} className="text-emerald-400" />
-              <span className="text-emerald-400">Copied!</span>
+              <Check size={12} className="text-emerald-500" />
+              <span className="text-emerald-500">Copied!</span>
             </>
           ) : (
             <>
@@ -576,9 +576,9 @@ function RichEmailCard({
         </button>
       </div>
 
-      <div className="text-sm font-bold text-white tracking-wide">{subject}</div>
+      <div className="text-sm font-bold text-[var(--text-primary)] tracking-wide">{subject}</div>
       <div
-        className="tiptap-rendered-content text-xs leading-relaxed max-w-none text-gray-200 border-t border-white/5 pt-2"
+        className="tiptap-rendered-content text-xs leading-relaxed max-w-none text-[var(--text-primary)] border-t border-[var(--border-color)] pt-2"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
@@ -662,7 +662,7 @@ function DeleteConfirmPopover({
         type="button"
         title="Delete Message"
         onClick={() => open ? onClose() : onOpen()}
-        className={`flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent ${open ? 'bg-red-500/20 text-red-400' : 'text-[var(--text-secondary)] hover:bg-red-500/15 hover:text-red-400'}`}
+        className={`flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent ${open ? 'bg-red-500/20 text-red-500' : 'text-[var(--text-secondary)] hover:bg-red-500/15 hover:text-red-500'}`}
       >
         <Trash2 size={13} />
       </button>
@@ -678,9 +678,9 @@ function DeleteConfirmPopover({
             transform: 'translateX(-50%)',
             zIndex: 99999,
           }}
-          className="flex items-center gap-2 px-3 py-2.5 bg-[#161b26] border border-[#2e374a] rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl"
+          className="flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl"
         >
-          <span className="text-[11px] font-bold text-gray-300 whitespace-nowrap">
+          <span className="text-[11px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
             Delete:
           </span>
 
@@ -696,7 +696,7 @@ function DeleteConfirmPopover({
 
           <button
             type="button"
-            className="text-[11px] font-bold px-3 py-1 rounded-lg cursor-pointer transition-colors bg-[#242c3d] hover:bg-[#313b52] text-gray-200 border border-white/10 whitespace-nowrap shadow-sm"
+            className="text-[11px] font-bold px-3 py-1 rounded-lg cursor-pointer transition-colors bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] whitespace-nowrap shadow-sm"
             onClick={(e) => { e.stopPropagation(); onConfirmMe(); }}
           >
             {isSentByMe ? 'Just Me' : 'Delete'}
@@ -704,7 +704,7 @@ function DeleteConfirmPopover({
 
           <button
             type="button"
-            className="ml-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-transparent border-none text-gray-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+            className="ml-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-transparent border-none text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             title="Cancel"
           >

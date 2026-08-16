@@ -121,7 +121,7 @@ export function RichEmailModal({
     content: `<p>Hi ${recipientName},</p><p>Write your formatted message here...</p>`,
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[220px] p-5 text-sm text-[#f3f4f6]',
+        class: 'prose max-w-none focus:outline-none min-h-[220px] p-5 text-sm text-[var(--text-primary)]',
       },
     },
   });
@@ -164,18 +164,18 @@ export function RichEmailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-[#12161f] border border-[#242c3d] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#242c3d] bg-[#0a0c10]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: activeThemeColor }}>
               <Mail size={19} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white leading-tight">Formatted Email Message</h3>
-              <p className="text-[11px] text-gray-400 font-normal">Create styled messages with Tiptap Editor</p>
+              <h3 className="text-base font-bold text-[var(--text-primary)] leading-tight">Formatted Email Message</h3>
+              <p className="text-[11px] text-[var(--text-secondary)] font-normal">Create styled messages with Tiptap Editor</p>
             </div>
           </div>
 
@@ -186,22 +186,22 @@ export function RichEmailModal({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowTemplates(!showTemplates)}
-                className="px-3 py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-semibold text-gray-200 flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <FileText size={13} />
                 <span>Templates</span>
               </button>
 
               {showTemplates && (
-                <div className="absolute top-10 right-0 z-50 w-64 bg-[#161b26] border border-[#242c3d] rounded-xl shadow-2xl p-2 flex flex-col gap-1">
-                  <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Preset Template</div>
+                <div className="absolute top-10 right-0 z-50 w-64 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl p-2 flex flex-col gap-1">
+                  <div className="px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Select Preset Template</div>
                   {EMAIL_TEMPLATES.map((tpl) => (
                     <button
                       key={tpl.title}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleApplyTemplate(tpl)}
-                      className="px-3 py-2 rounded-lg text-left text-xs font-medium text-gray-200 hover:bg-[#22293a] transition-colors border-none cursor-pointer"
+                      className="px-3 py-2 rounded-lg text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors border-none cursor-pointer"
                     >
                       {tpl.title}
                     </button>
@@ -212,7 +212,7 @@ export function RichEmailModal({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+              className="p-1.5 rounded-full hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-none bg-transparent cursor-pointer"
             >
               <X size={20} />
             </button>
@@ -220,26 +220,26 @@ export function RichEmailModal({
         </div>
 
         {/* Subject Line Input */}
-        <div className="px-6 py-3 border-b border-[#242c3d] bg-[#161b26] flex items-center gap-3">
-          <label className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0">SUBJECT:</label>
+        <div className="px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center gap-3">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider shrink-0">SUBJECT:</label>
           <input
             type="text"
             placeholder="Type subject or message title..."
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-gray-500"
+            className="flex-1 bg-transparent border-none outline-none text-[var(--text-primary)] text-sm font-medium placeholder-[var(--text-muted)]"
           />
         </div>
 
         {/* Tiptap Rich Formatting Toolbar */}
-        <div className="px-4 py-2 bg-[#1b212f] border-b border-[#242c3d] flex flex-wrap items-center gap-1">
+        <div className="px-4 py-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] flex flex-wrap items-center gap-1">
 
           {/* Headings */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-indigo-600 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Heading 1"
           >
             <Heading1 size={16} />
@@ -248,7 +248,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-indigo-600 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Heading 2"
           >
             <Heading2 size={16} />
@@ -257,29 +257,20 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('heading', { level: 3 }) ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('heading', { level: 3 }) ? 'bg-indigo-600 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Heading 3"
           >
             <Heading3 size={16} />
           </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().setParagraph().run()}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${editor.isActive('paragraph') && !editor.isActive('heading') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
-            title="Normal Text"
-          >
-            P
-          </button>
 
-          <div className="w-[1px] h-4 bg-[#242c3d] mx-1" />
+          <div className="w-[1px] h-4 bg-[var(--border-color)] mx-1" />
 
           {/* Text Styles */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-white/20 text-white font-bold' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Bold (Ctrl+B)"
           >
             <Bold size={16} />
@@ -288,7 +279,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Italic (Ctrl+I)"
           >
             <Italic size={16} />
@@ -297,7 +288,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleUnderline().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('underline') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('underline') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Underline (Ctrl+U)"
           >
             <UnderlineIcon size={16} />
@@ -306,7 +297,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('strike') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('strike') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Strikethrough"
           >
             <Strikethrough size={16} />
@@ -314,14 +305,32 @@ export function RichEmailModal({
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleSubscript().run()}
+            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('subscript') ? 'bg-indigo-600 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
+            title="Subscript (X₂)"
+          >
+            X₂
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            className={`p-1.5 rounded text-xs font-bold transition-colors ${editor.isActive('superscript') ? 'bg-indigo-600 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
+            title="Superscript (X²)"
+          >
+            X²
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('code') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('code') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Inline Code"
           >
             <Code size={16} />
           </button>
 
-          <div className="w-[1px] h-4 bg-[#242c3d] mx-1" />
+          <div className="w-[1px] h-4 bg-[var(--border-color)] mx-1" />
 
           {/* Color Picker Swatches */}
           <div className="relative">
@@ -332,17 +341,17 @@ export function RichEmailModal({
                 setShowColorPicker(!showColorPicker);
                 setShowHighlightPicker(false);
               }}
-              className="p-1.5 rounded hover:bg-white/10 flex items-center gap-1 text-gray-300 transition-colors"
+              className="p-1.5 rounded hover:bg-[var(--border-color)] flex items-center gap-1 text-[var(--text-primary)] transition-colors cursor-pointer"
               title="Text Color"
             >
               <Type size={15} />
               <div
-                className="w-3.5 h-3.5 rounded-full border border-white/30"
-                style={{ backgroundColor: editor.getAttributes('textStyle').color || '#ffffff' }}
+                className="w-3.5 h-3.5 rounded-full border border-[var(--border-color)]"
+                style={{ backgroundColor: editor.getAttributes('textStyle').color || 'currentColor' }}
               />
             </button>
             {showColorPicker && (
-              <div className="absolute top-9 left-0 z-50 p-2 bg-[#0a0c10] border border-[#242c3d] rounded-xl shadow-xl flex gap-1.5">
+              <div className="absolute top-9 left-0 z-50 p-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-xl flex gap-1.5">
                 {COLOR_PALETTE.map((c) => (
                   <button
                     key={c.name}
@@ -370,13 +379,13 @@ export function RichEmailModal({
                 setShowHighlightPicker(!showHighlightPicker);
                 setShowColorPicker(false);
               }}
-              className={`p-1.5 rounded hover:bg-white/10 flex items-center gap-1 transition-colors ${editor.isActive('highlight') ? 'bg-amber-500/20 text-amber-300' : 'text-gray-300'}`}
+              className={`p-1.5 rounded hover:bg-[var(--border-color)] flex items-center gap-1 transition-colors cursor-pointer ${editor.isActive('highlight') ? 'bg-amber-500/20 text-amber-300' : 'text-[var(--text-primary)]'}`}
               title="Highlight Text"
             >
               <Highlighter size={15} />
             </button>
             {showHighlightPicker && (
-              <div className="absolute top-9 left-0 z-50 p-2 bg-[#0a0c10] border border-[#242c3d] rounded-xl shadow-xl flex items-center gap-1.5">
+              <div className="absolute top-9 left-0 z-50 p-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-xl flex items-center gap-1.5">
                 {HIGHLIGHT_PALETTE.map((h) => (
                   <button
                     key={h.name}
@@ -398,7 +407,7 @@ export function RichEmailModal({
                     editor.chain().focus().unsetHighlight().run();
                     setShowHighlightPicker(false);
                   }}
-                  className="px-2 py-0.5 rounded text-[10px] bg-white/10 text-white font-semibold hover:bg-white/20"
+                  className="px-2 py-0.5 text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded bg-[var(--bg-tertiary)] border border-[var(--border-color)] cursor-pointer"
                 >
                   Clear
                 </button>
@@ -406,14 +415,14 @@ export function RichEmailModal({
             )}
           </div>
 
-          <div className="w-[1px] h-4 bg-[#242c3d] mx-1" />
+          <div className="w-[1px] h-4 bg-[var(--border-color)] mx-1" />
 
           {/* Alignment */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().setTextAlign('left').run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Align Left"
           >
             <AlignLeft size={16} />
@@ -422,7 +431,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().setTextAlign('center').run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Align Center"
           >
             <AlignCenter size={16} />
@@ -431,7 +440,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().setTextAlign('right').run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Align Right"
           >
             <AlignRight size={16} />
@@ -440,20 +449,20 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'justify' }) ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'justify' }) ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Align Justify"
           >
             <AlignJustify size={16} />
           </button>
 
-          <div className="w-[1px] h-4 bg-[#242c3d] mx-1" />
+          <div className="w-[1px] h-4 bg-[var(--border-color)] mx-1" />
 
           {/* Lists, Tasks & Tables */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Bullet List"
           >
             <List size={16} />
@@ -462,7 +471,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Ordered List"
           >
             <ListOrdered size={16} />
@@ -471,7 +480,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleTaskList().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('taskList') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('taskList') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Task Checklist"
           >
             <CheckSquare size={16} />
@@ -480,7 +489,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('blockquote') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors ${editor.isActive('blockquote') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Blockquote"
           >
             <Quote size={16} />
@@ -489,7 +498,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            className="p-1.5 rounded text-gray-300 hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors cursor-pointer"
             title="Horizontal Line Divider"
           >
             <Minus size={16} />
@@ -498,7 +507,7 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleInsertTable}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('table') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors cursor-pointer ${editor.isActive('table') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Insert Table"
           >
             <TableIcon size={16} />
@@ -507,20 +516,20 @@ export function RichEmailModal({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleSetLink}
-            className={`p-1.5 rounded transition-colors ${editor.isActive('link') ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            className={`p-1.5 rounded transition-colors cursor-pointer ${editor.isActive('link') ? 'bg-white/20 text-white' : 'text-[var(--text-primary)] hover:bg-[var(--border-color)]'}`}
             title="Insert Link"
           >
             <LinkIcon size={16} />
           </button>
 
-          <div className="w-[1px] h-4 bg-[#242c3d] mx-1" />
+          <div className="w-[1px] h-4 bg-[var(--border-color)] mx-1" />
 
           {/* Undo / Redo & Clear */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
-            className="p-1.5 rounded text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+            className="p-1.5 rounded text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors cursor-pointer"
             title="Clear Formatting"
           >
             <Eraser size={16} />
@@ -530,7 +539,7 @@ export function RichEmailModal({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
-            className="p-1.5 rounded text-gray-300 hover:bg-white/10 disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded text-[var(--text-primary)] hover:bg-[var(--border-color)] disabled:opacity-30 transition-colors cursor-pointer"
             title="Undo (Ctrl+Z)"
           >
             <Undo size={16} />
@@ -540,7 +549,7 @@ export function RichEmailModal({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
-            className="p-1.5 rounded text-gray-300 hover:bg-white/10 disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded text-[var(--text-primary)] hover:bg-[var(--border-color)] disabled:opacity-30 transition-colors cursor-pointer"
             title="Redo (Ctrl+Y)"
           >
             <Redo size={16} />
@@ -548,16 +557,16 @@ export function RichEmailModal({
         </div>
 
         {/* Tiptap Editor Box */}
-        <div className="flex-1 overflow-y-auto bg-[#12161f] min-h-[240px]">
+        <div className="flex-1 overflow-y-auto bg-[var(--bg-primary)] min-h-[240px]">
           <EditorContent editor={editor} />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-6 py-4 border-t border-[#242c3d] bg-[#0a0c10] gap-3">
+        <div className="flex items-center justify-end px-6 py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -574,13 +583,13 @@ export function RichEmailModal({
 
         {/* Custom Toast Notification */}
         {toastMessage && (
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-4 py-3 bg-[#1e1724]/95 text-[#f87171] border border-[#ef4444]/40 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-3 duration-200">
-            <AlertCircle size={17} className="shrink-0 text-[#ef4444]" />
-            <span className="text-xs font-medium text-gray-100">{toastMessage}</span>
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-4 py-3 bg-[var(--bg-secondary)] text-red-500 border border-red-500/40 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-3 duration-200">
+            <AlertCircle size={17} className="shrink-0 text-red-500" />
+            <span className="text-xs font-medium text-[var(--text-primary)]">{toastMessage}</span>
             <button
               type="button"
               onClick={() => setToastMessage(null)}
-              className="ml-2 text-gray-400 hover:text-white p-0.5 rounded transition-colors"
+              className="ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded transition-colors"
             >
               <X size={14} />
             </button>
@@ -589,24 +598,24 @@ export function RichEmailModal({
 
         {/* Custom Insert Link Modal */}
         {linkModalOpen && (
-          <div className="absolute inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-[#181d28] border border-[#2e384d] rounded-xl shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+          <div className="absolute inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                  <LinkIcon size={16} className="text-indigo-400" />
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                  <LinkIcon size={16} className="text-indigo-500" />
                   <span>Insert / Edit Link</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setLinkModalOpen(false)}
-                  className="text-gray-400 hover:text-white p-1 rounded"
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded cursor-pointer"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                   Target URL
                 </label>
                 <input
@@ -621,7 +630,7 @@ export function RichEmailModal({
                     }
                   }}
                   autoFocus
-                  className="w-full px-3 py-2 bg-[#0d1017] border border-[#2a3449] rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
@@ -629,14 +638,14 @@ export function RichEmailModal({
                 <button
                   type="button"
                   onClick={() => setLinkModalOpen(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmLink}
-                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow transition-colors"
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow transition-colors cursor-pointer"
                 >
                   Apply Link
                 </button>

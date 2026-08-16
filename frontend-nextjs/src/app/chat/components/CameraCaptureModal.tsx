@@ -106,11 +106,11 @@ export function CameraCaptureModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#12161f] border border-[#242c3d] rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-[10000] bg-black/75 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#242c3d] bg-[#0a0c10]">
-          <div className="flex items-center gap-2 font-semibold text-white text-base">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+          <div className="flex items-center gap-2 font-semibold text-[var(--text-primary)] text-base">
             <Camera size={20} style={{ color: activeThemeColor }} />
             <span>Capture Photo</span>
           </div>
@@ -119,7 +119,7 @@ export function CameraCaptureModal({
               if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
               onClose();
             }}
-            className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-none bg-transparent cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -148,7 +148,7 @@ export function CameraCaptureModal({
                   <p>{errorMsg}</p>
                   <button
                     onClick={startCamera}
-                    className="px-4 py-2 bg-white/10 rounded-lg text-white text-xs font-semibold hover:bg-white/20"
+                    className="px-4 py-2 bg-white/10 rounded-lg text-white text-xs font-semibold hover:bg-white/20 cursor-pointer"
                   >
                     Retry Camera
                   </button>
@@ -161,7 +161,7 @@ export function CameraCaptureModal({
           {!capturedImage && !errorMsg && (
             <button
               onClick={toggleCameraFacing}
-              className="absolute top-4 right-4 p-3 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white hover:bg-black/80 transition-all active:scale-95"
+              className="absolute top-4 right-4 p-3 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white hover:bg-black/80 transition-all active:scale-95 cursor-pointer"
               title="Switch Camera"
             >
               <RefreshCw size={18} />
@@ -170,19 +170,19 @@ export function CameraCaptureModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-center p-5 bg-[#0a0c10] border-t border-[#242c3d] gap-4">
+        <div className="flex items-center justify-center p-5 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] gap-4">
           {capturedImage ? (
             <>
               <button
                 onClick={handleRetake}
-                className="px-5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white font-medium text-sm flex items-center gap-2 transition-all"
+                className="px-5 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] font-medium text-sm flex items-center gap-2 transition-all cursor-pointer"
               >
                 <RefreshCw size={16} />
                 Retake
               </button>
               <button
                 onClick={handleSendPhoto}
-                className="px-6 py-2.5 rounded-xl text-white font-semibold text-sm flex items-center gap-2 transition-all shadow-lg active:scale-95"
+                className="px-6 py-2.5 rounded-xl text-white font-semibold text-sm flex items-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer"
                 style={{ backgroundColor: activeThemeColor }}
               >
                 <Check size={18} />
@@ -193,7 +193,7 @@ export function CameraCaptureModal({
             <button
               onClick={handleTakeSnap}
               disabled={!!errorMsg}
-              className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-xl"
+              className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-xl cursor-pointer"
               style={{ backgroundColor: activeThemeColor }}
               title="Take Photo"
             >

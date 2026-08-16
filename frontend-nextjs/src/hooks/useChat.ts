@@ -103,6 +103,9 @@ export function useChat(
       setNextCursor(fetchedNextCursor);
 
       if (socket) socket.emit('mark-as-read', { conversationId: convo.id });
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convo.id ? { ...c, unreadCount: 0 } : c))
+      );
       fetch(`${API_URL}/chat/conversation/${convo.id}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -419,7 +422,16 @@ export function useChat(
         const index = prevConvos.findIndex((c) => c.id === msg.conversationId);
         if (index === -1) { fetchConversations(); return prevConvos; }
         const updated = [...prevConvos];
-        const convo = { ...updated[index], messages: [msg] };
+        const isMsgFromMe = msg.senderId === user?.id;
+        const currentActive = activeConvo?.id === msg.conversationId;
+        const currentUnread = updated[index].unreadCount || 0;
+        const newUnread = isMsgFromMe || currentActive ? 0 : currentUnread + 1;
+        
+        const convo = {
+          ...updated[index],
+          messages: [msg],
+          unreadCount: newUnread,
+        };
         updated.splice(index, 1);
         return [convo, ...updated];
       });
