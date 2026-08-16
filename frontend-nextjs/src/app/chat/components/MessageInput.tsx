@@ -21,7 +21,7 @@ interface MessageInputProps {
   onInputChange: (val: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onSend: () => void;
-  onSendDefaultEmoji: () => void;
+  onSendDefaultEmoji: (size?: 'small' | 'medium' | 'large') => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement> | { target: { files: FileList | File[] } }) => void;
   onEmojiClick: (data: { emoji: string }) => void;
   onToggleEmojiPicker: () => void;
@@ -126,6 +126,77 @@ export function MessageInput({
   const handleCameraCapture = (file: File) => {
     onFileSelect({ target: { files: [file] } } as any);
   };
+
+  // ─── Press & Hold Emoji Growing Logic (Messenger style) ───
+  const [holdingEmoji, setHoldingEmoji] = useState(false);
+  const [emojiScale, setEmojiScale] = useState(1);
+  const holdStartTimeRef = useRef<number>(0);
+  const scaleIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startEmojiHold = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    
+    holdStartTimeRef.current = Date.now();
+    setHoldingEmoji(true);
+    setEmojiScale(1);
+
+    if (scaleIntervalRef.current) clearInterval(scaleIntervalRef.current);
+    scaleIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - holdStartTimeRef.current;
+      // Start scaling after 150ms of hold
+      if (elapsed > 150) {
+        // Growth curve from 1 to 2.8x max
+        const progress = Math.min((elapsed - 150) / 1500, 1);
+        const currentScale = 1 + progress * 1.8;
+        setEmojiScale(currentScale);
+      }
+    }, 25);
+  };
+
+  const endEmojiHold = (e: React.PointerEvent) => {
+    if (!holdingEmoji) return;
+    try {
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {}
+
+    if (scaleIntervalRef.current) {
+      clearInterval(scaleIntervalRef.current);
+      scaleIntervalRef.current = null;
+    }
+
+    const elapsed = Date.now() - holdStartTimeRef.current;
+    setHoldingEmoji(false);
+    setEmojiScale(1);
+
+    // Determine size level based on duration held
+    if (elapsed < 350) {
+      onSendDefaultEmoji('small');
+    } else if (elapsed < 1100) {
+      onSendDefaultEmoji('medium');
+    } else {
+      onSendDefaultEmoji('large');
+    }
+  };
+
+  const cancelEmojiHold = (e: React.PointerEvent) => {
+    if (!holdingEmoji) return;
+    try {
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {}
+    if (scaleIntervalRef.current) {
+      clearInterval(scaleIntervalRef.current);
+      scaleIntervalRef.current = null;
+    }
+    setHoldingEmoji(false);
+    setEmojiScale(1);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scaleIntervalRef.current) clearInterval(scaleIntervalRef.current);
+    };
+  }, []);
 
   return (
     <>
@@ -323,14 +394,37 @@ export function MessageInput({
             <Send size={16} />
           </button>
         ) : (
-          <button
-            type="button"
-            className="bg-transparent border-none text-xl cursor-pointer flex items-center justify-center w-[38px] h-[38px] rounded-md hover:bg-[var(--bg-tertiary)] transition-colors select-none"
-            onClick={onSendDefaultEmoji}
-            title={`Send Quick Emoji (${activeDefaultEmoji})`}
-          >
-            {activeDefaultEmoji}
-          </button>
+          <div className="relative flex items-center justify-center">
+            {/* Growing Emoji Bubble Preview while holding */}
+            {holdingEmoji && (
+              <div
+                className="absolute bottom-12 right-0 pointer-events-none z-50 flex items-center justify-center origin-bottom select-none filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-transform duration-75"
+                style={{
+                  transform: `scale(${emojiScale})`,
+                }}
+              >
+                <div className="text-4xl animate-pulse">
+                  {activeDefaultEmoji}
+                </div>
+              </div>
+            )}
+            
+            <button
+              type="button"
+              className={`bg-transparent border-none text-xl cursor-pointer flex items-center justify-center w-[38px] h-[38px] rounded-md transition-all select-none touch-none ${
+                holdingEmoji ? 'scale-90 bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-tertiary)]'
+              }`}
+              onPointerDown={startEmojiHold}
+              onPointerUp={endEmojiHold}
+              onPointerCancel={cancelEmojiHold}
+              onContextMenu={(e) => e.preventDefault()}
+              title={`Send Quick Emoji (${activeDefaultEmoji}) — Press and hold to grow!`}
+            >
+              <span className={holdingEmoji ? 'opacity-30 transition-opacity' : 'transition-opacity'}>
+                {activeDefaultEmoji}
+              </span>
+            </button>
+          </div>
         )}
       </div>
 

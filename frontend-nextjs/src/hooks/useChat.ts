@@ -225,9 +225,13 @@ export function useChat(
     setReplyingTo(null);
   };
 
-  const handleSendDefaultEmoji = () => {
-    const emojiToSend = activeConvo?.defaultEmoji || '👍';
+  const handleSendDefaultEmoji = (size: 'small' | 'medium' | 'large' = 'small') => {
+    const baseEmoji = activeConvo?.defaultEmoji || '👍';
     if (!activeConvo || !socket || !user) return;
+    
+    // Encode size in message content if not small (e.g. [BIG_EMOJI:large]👍)
+    const emojiToSend = size === 'small' ? baseEmoji : `[BIG_EMOJI:${size}]${baseEmoji}`;
+    
     autoScrollBottomRef.current = true;
     const optimisticMsg = {
       id: 'pending-' + Date.now(),

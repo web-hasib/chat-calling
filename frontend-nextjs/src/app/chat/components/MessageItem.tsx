@@ -292,7 +292,20 @@ export function MessageItem({
             );
           })()
         ) : (() => {
-          const content = (msg.content || '').trim();
+          let content = (msg.content || '').trim();
+          let explicitSize: 'small' | 'medium' | 'large' | null = null;
+          
+          if (content.startsWith('[BIG_EMOJI:')) {
+            const closingIdx = content.indexOf(']');
+            if (closingIdx !== -1) {
+              const tag = content.slice(11, closingIdx);
+              if (tag === 'medium' || tag === 'large' || tag === 'small') {
+                explicitSize = tag;
+                content = content.slice(closingIdx + 1).trim();
+              }
+            }
+          }
+
           // Regex to check if the message consists ONLY of 1 to 3 emojis
           const emojiOnlyRegex = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\uFE0F|\u200D|\u20E3|\s)+$/u;
           const isEmojiOnly = content.length > 0 && emojiOnlyRegex.test(content);
@@ -303,15 +316,23 @@ export function MessageItem({
             const isSingleEmoji = emojiSegments.length === 1;
             const isFewEmojis = emojiSegments.length > 1 && emojiSegments.length <= 4;
             
+            // If explicitly sized or single emoji
+            let sizeClasses = 'text-2xl';
+            if (explicitSize === 'large') {
+              sizeClasses = 'text-6xl md:text-7xl my-2 scale-110 animate-in zoom-in-50 duration-200';
+            } else if (explicitSize === 'medium') {
+              sizeClasses = 'text-4xl md:text-5xl my-1 animate-in zoom-in-75 duration-150';
+            } else if (explicitSize === 'small') {
+              sizeClasses = 'text-2xl my-0.5';
+            } else if (isSingleEmoji) {
+              sizeClasses = 'text-3xl my-1';
+            } else if (isFewEmojis) {
+              sizeClasses = 'text-2xl my-1';
+            }
+
             return (
               <div
-                className={`py-1 px-1 leading-none select-none ${
-                  isSingleEmoji
-                    ? 'text-5xl md:text-6xl my-1 hover:scale-110 transition-transform duration-150 origin-bottom'
-                    : isFewEmojis
-                    ? 'text-4xl md:text-5xl my-1'
-                    : 'text-2xl'
-                }`}
+                className={`py-1 px-1 leading-none select-none hover:scale-105 transition-transform duration-150 origin-bottom ${sizeClasses}`}
               >
                 {content}
               </div>
