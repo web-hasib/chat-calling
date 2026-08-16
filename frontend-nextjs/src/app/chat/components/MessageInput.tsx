@@ -130,6 +130,7 @@ export function MessageInput({
   // ─── Press & Hold Emoji Growing Logic (Messenger style) ───
   const [holdingEmoji, setHoldingEmoji] = useState(false);
   const [emojiScale, setEmojiScale] = useState(1);
+  const [isPopping, setIsPopping] = useState(false);
   const holdStartTimeRef = useRef<number>(0);
   const scaleIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -138,6 +139,7 @@ export function MessageInput({
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     
     holdStartTimeRef.current = Date.now();
+    setIsPopping(false);
     setHoldingEmoji(true);
     setEmojiScale(1);
 
@@ -146,16 +148,33 @@ export function MessageInput({
       const elapsed = Date.now() - holdStartTimeRef.current;
       // Start scaling after 150ms of hold
       if (elapsed > 150) {
-        // Growth curve from 1 to 2.8x max
+        // Growth curve from 1 to 2.8x max (reaches max at 1500ms growth, i.e., 1650ms elapsed)
         const progress = Math.min((elapsed - 150) / 1500, 1);
         const currentScale = 1 + progress * 1.8;
         setEmojiScale(currentScale);
+
+        // Auto-cancel 1 second after reaching max size (1650ms + 1000ms = 2650ms)
+        if (elapsed >= 2650) {
+          if (scaleIntervalRef.current) {
+            clearInterval(scaleIntervalRef.current);
+            scaleIntervalRef.current = null;
+          }
+          setIsPopping(true);
+          if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate([40, 40, 40]);
+          }
+          setTimeout(() => {
+            setHoldingEmoji(false);
+            setIsPopping(false);
+            setEmojiScale(1);
+          }, 200); // Animation duration
+        }
       }
     }, 25);
   };
 
   const endEmojiHold = (e: React.PointerEvent) => {
-    if (!holdingEmoji) return;
+    if (!holdingEmoji || isPopping) return;
     try {
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
     } catch {}
@@ -189,6 +208,7 @@ export function MessageInput({
       scaleIntervalRef.current = null;
     }
     setHoldingEmoji(false);
+    setIsPopping(false);
     setEmojiScale(1);
   };
 
@@ -412,12 +432,14 @@ export function MessageInput({
             {/* Growing Emoji Bubble Preview while holding */}
             {holdingEmoji && (
               <div
-                className="absolute bottom-12 right-0 pointer-events-none z-50 flex items-center justify-center origin-bottom select-none filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-transform duration-75"
+                className={`absolute bottom-12 right-0 pointer-events-none z-50 flex items-center justify-center origin-bottom select-none filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all duration-200 ${
+                  isPopping ? 'scale-0 opacity-0 ease-in' : 'duration-75 ease-out'
+                }`}
                 style={{
-                  transform: `scale(${emojiScale})`,
+                  transform: isPopping ? 'scale(0)' : `scale(${emojiScale})`,
                 }}
               >
-                <div className="text-4xl animate-pulse">
+                <div className={`text-4xl ${isPopping ? 'animate-none' : 'animate-pulse'}`}>
                   {activeDefaultEmoji}
                 </div>
               </div>

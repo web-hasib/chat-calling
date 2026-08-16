@@ -391,14 +391,11 @@ export function Sidebar({
       </div>
 
       {/* ── Mobile App-Style Glassy Bottom Bar (/10 Opacity + Backdrop Blur) ── */}
-      <div className={`md:hidden absolute bottom-0 left-0 right-0 h-[64px] bg-[var(--bg-secondary)]/10 backdrop-blur-xl border-t border-[var(--border-color)]/20 z-40 shrink-0 flex items-center overflow-visible pointer-events-auto ${sidebarCollapsed ? 'hidden' : ''}`}>
+      <div className={`md:hidden absolute bottom-0 left-0 right-0 h-[60px] bg-[var(--bg-secondary)] border-t border-[var(--border-color)]/30 z-40 shrink-0 flex items-center pointer-events-auto ${sidebarCollapsed ? 'hidden' : ''}`}>
         
-        {/* Continuous Bottom Accent Line with subtle glow */}
-        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--accent-primary)] z-10 opacity-90 shadow-[0_-1px_6px_var(--accent-primary)]" />
-
-        {/* Animated Liquid Rise from Bottom over Active Tab */}
+        {/* Simple Centered Horizontal Underline Indicator */}
         <div
-          className="absolute bottom-0 h-[64px] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none z-10 flex flex-col justify-end items-center"
+          className="absolute bottom-0 h-[3px] transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] z-10 flex justify-center"
           style={{
             width: '25%',
             left: `${
@@ -412,23 +409,13 @@ export function Sidebar({
             }%`,
           }}
         >
-          {/* Exactly Shaped Liquid Bulb/Droplet SVG Matching the Reference with Ultra-Smooth Tangential Base Edges */}
-          <div className="relative w-[84px] h-[58px] flex items-center justify-center -mb-[0.5px]">
-            <svg
-              viewBox="0 0 100 60"
-              className="w-full h-full text-[var(--accent-primary)] fill-current filter drop-shadow-[0_-4px_12px_rgba(37,99,235,0.45)]"
-              preserveAspectRatio="none"
-            >
-              {/* Perfectly smooth tangential bottom flare into vertical waist and circular dome */}
-              <path d="M 0 60 C 20 60, 24 56, 28 36 C 30 20, 31 0, 50 0 C 69 0, 70 20, 72 36 C 76 56, 80 60, 100 60 Z" />
-            </svg>
-          </div>
+          <div className="w-8 h-full bg-[var(--accent-primary)] rounded-full" />
         </div>
 
-        {/* 4 Interactive Meaningful Flaticon-Style Tab Buttons */}
+        {/* 4 Interactive Tab Buttons */}
         <div className="relative w-full h-full flex items-center z-20">
           
-          {/* Tab 1: Chats (Flaticon Style Chat Message Bubble) */}
+          {/* Tab 1: Chats */}
           <button
             type="button"
             onClick={() => handleMobileTabChange('chats')}
@@ -436,13 +423,12 @@ export function Sidebar({
             title="All Chats"
           >
             <div
-              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              className={`relative flex items-center justify-center transition-all duration-200 ${
                 mobileTab === 'chats' && !showUserList
-                  ? 'text-white translate-y-0.5 scale-110'
+                  ? 'text-[var(--accent-primary)] scale-105'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              {/* Flaticon Solid Chat Bubble */}
               <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 10H6v-2h12v2zm0-3H6V7h12v2z" />
               </svg>
@@ -455,7 +441,7 @@ export function Sidebar({
             </div>
           </button>
 
-          {/* Tab 2: People / Contacts (Flaticon Solid Contact User) */}
+          {/* Tab 2: People / Contacts */}
           <button
             type="button"
             onClick={() => handleMobileTabChange('users')}
@@ -463,20 +449,19 @@ export function Sidebar({
             title="People & Direct Contacts"
           >
             <div
-              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              className={`relative flex items-center justify-center transition-all duration-200 ${
                 showUserList || mobileTab === 'users'
-                  ? 'text-white translate-y-0.5 scale-110'
+                  ? 'text-[var(--accent-primary)] scale-105'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              {/* Flaticon Solid User Contact */}
               <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V21h19.2v-1.8c0-3.2-6.4-4.8-9.6-4.8z" />
               </svg>
             </div>
           </button>
 
-          {/* Tab 3: Group Chats (Flaticon Solid Groups/Community) */}
+          {/* Tab 3: Group Chats */}
           <button
             type="button"
             onClick={() => handleMobileTabChange('groups')}
@@ -484,13 +469,12 @@ export function Sidebar({
             title="Group Chats"
           >
             <div
-              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              className={`relative flex items-center justify-center transition-all duration-200 ${
                 mobileTab === 'groups' && activeFilter === 'groups' && !showUserList
-                  ? 'text-white translate-y-0.5 scale-110'
+                  ? 'text-[var(--accent-primary)] scale-105'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              {/* Flaticon Solid Multiple Users */}
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
               </svg>
@@ -502,7 +486,7 @@ export function Sidebar({
             </div>
           </button>
 
-          {/* Tab 4: Settings (Flaticon Solid Gear Cog) */}
+          {/* Tab 4: Settings */}
           <button
             type="button"
             onClick={() => handleMobileTabChange('settings')}
@@ -510,13 +494,12 @@ export function Sidebar({
             title="Settings & Theme"
           >
             <div
-              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              className={`relative flex items-center justify-center transition-all duration-200 ${
                 showSettings
-                  ? 'text-white translate-y-0.5 scale-110'
+                  ? 'text-[var(--accent-primary)] scale-105'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              {/* Flaticon Solid Settings Cog */}
               <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
               </svg>

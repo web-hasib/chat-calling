@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { DOMParser } from 'prosemirror-model';
 import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
@@ -122,6 +123,25 @@ export function RichEmailModal({
     editorProps: {
       attributes: {
         class: 'prose max-w-none focus:outline-none min-h-[140px] md:min-h-[220px] p-4 md:p-5 text-sm text-[var(--text-primary)]',
+      },
+      handlePaste(view, event) {
+        const text = event.clipboardData?.getData('text/plain');
+        if (!text) return false;
+
+        const isMarkdown = /(^#\s|^\d+\.\s|^\s*[-*+]\s|\*\*|__|\*|_|`|\[.*?\]\(.*?\))/m.test(text);
+
+        if (isMarkdown) {
+          event.preventDefault();
+          const html = parseMarkdownToHtml(text);
+          const parser = DOMParser.fromSchema(view.state.schema);
+          const element = document.createElement('div');
+          element.innerHTML = html;
+          const slice = parser.parseSlice(element);
+          const transaction = view.state.tr.replaceSelection(slice);
+          view.dispatch(transaction);
+          return true;
+        }
+        return false;
       },
     },
   });
@@ -656,4 +676,125 @@ export function RichEmailModal({
       </div>
     </div>
   );
+}
+
+/* Helper to convert Markdown to simple HTML on paste */
+function parseMarkdownToHtml(markdown: string): string {
+  let html = markdown;
+
+  // Escape HTML characters
+  html = html
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Code blocks (```lang ... ```)
+  html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+    return `<pre><code>${code.trim()}</code></pre>`;
+  });
+
+  // Blockquotes (> text)
+  const lines = html.split('\n');
+  let inBlockquote = false;
+  let inList = false;
+  let inOrderedList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+
+    // Headers
+    if (line.startsWith('# ')) {
+      lines[i] = `<h1>${line.slice(2)}</h1>`;
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      lines[i] = `<h2>${line.slice(3)}</h2>`;
+      continue;
+    }
+    if (line.startsWith('### ')) {
+      lines[i] = `<h3>${line.slice(4)}</h3>`;
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('&gt; ')) {
+      if (!inBlockquote) {
+        lines[i] = `<blockquote><p>${line.slice(5)}`;
+        inBlockquote = true;
+      } else {
+        lines[i] = `${line.slice(5)}`;
+      }
+      const nextLine = lines[i + 1]?.trim();
+      if (!nextLine || !nextLine.startsWith('&gt; ')) {
+        lines[i] += '</p></blockquote>';
+        inBlockquote = false;
+      }
+      continue;
+    }
+
+    // Unordered List
+    if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('+ ')) {
+      let content = line.slice(2);
+      if (!inList) {
+        lines[i] = `<ul><li>${content}</li>`;
+        inList = true;
+      } else {
+        lines[i] = `<li>${content}</li>`;
+      }
+      const nextLine = lines[i + 1]?.trim();
+      if (!nextLine || (!nextLine.startsWith('- ') && !nextLine.startsWith('* ') && !nextLine.startsWith('+ '))) {
+        lines[i] += '</ul>';
+        inList = false;
+      }
+      continue;
+    }
+
+    // Ordered List
+    if (/^\d+\.\s/.test(line)) {
+      let content = line.replace(/^\d+\.\s/, '');
+      if (!inOrderedList) {
+        lines[i] = `<ol><li>${content}</li>`;
+        inOrderedList = true;
+      } else {
+        lines[i] = `<li>${content}</li>`;
+      }
+      const nextLine = lines[i + 1]?.trim();
+      if (!nextLine || !/^\d+\.\s/.test(nextLine)) {
+        lines[i] += '</ol>';
+        inOrderedList = false;
+      }
+      continue;
+    }
+  }
+
+  html = lines.join('\n');
+
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+
+  // Italic
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+
+  // Strikethrough
+  html = html.replace(/~~(.*?)~~/g, '<s>$1</s>');
+
+  // Inline code
+  html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+
+  // Links
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Paragraph tags for normal lines
+  const processedLines = html.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return '<p></p>';
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<li') || trimmed.startsWith('<blockquote') || trimmed.startsWith('<pre') || trimmed.endsWith('</blockquote>') || trimmed.endsWith('</ul>') || trimmed.endsWith('</ol>')) {
+      return line;
+    }
+    return `<p>${line}</p>`;
+  });
+
+  return processedLines.join('');
 }

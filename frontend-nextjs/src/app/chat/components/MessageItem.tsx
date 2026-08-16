@@ -143,6 +143,9 @@ export function MessageItem({
           type="button"
           title="React with Emoji"
           onClick={() => {
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+              window.navigator.vibrate(30);
+            }
             onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id);
             setShowMobileActionBar(false);
           }}
@@ -156,6 +159,9 @@ export function MessageItem({
           type="button"
           title="Reply"
           onClick={() => {
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+              window.navigator.vibrate(30);
+            }
             onReply(msg);
             setShowMobileActionBar(false);
           }}
@@ -168,7 +174,12 @@ export function MessageItem({
         <DeleteConfirmPopover
           open={isDeleteOpen}
           isSentByMe={isSentByMe}
-          onOpen={() => onDeleteToggle(msg.id)}
+          onOpen={() => {
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+              window.navigator.vibrate(30);
+            }
+            onDeleteToggle(msg.id);
+          }}
           onClose={() => onDeleteToggle(null)}
           onConfirmEveryone={() => onConfirmDelete(msg.id, 'everyone')}
           onConfirmMe={() => onConfirmDelete(msg.id, 'me')}
@@ -182,7 +193,12 @@ export function MessageItem({
             <button
               key={emoji}
               className="bg-transparent border-none text-base cursor-pointer px-1 rounded-sm hover:bg-[var(--bg-tertiary)] transition-colors"
-              onClick={() => onToggleReaction(msg.id, emoji)}
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                  window.navigator.vibrate(35);
+                }
+                onToggleReaction(msg.id, emoji);
+              }}
             >
               {emoji}
             </button>
@@ -190,6 +206,9 @@ export function MessageItem({
           <button
             className="bg-transparent border-none text-[var(--text-secondary)] cursor-pointer p-1 rounded-sm flex items-center justify-center hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-all"
             onClick={() => {
+              if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(30);
+              }
               onReactionPickerToggle(null);
               onCustomEmojiMsgToggle(msg.id);
             }}
@@ -229,7 +248,7 @@ export function MessageItem({
 
       {/* Message Bubble Box */}
       <div 
-        className="max-w-full w-fit flex flex-col relative"
+        className="max-w-full w-fit flex flex-col relative no-select-drag"
         onTouchStart={startLongPress}
         onTouchEnd={cancelLongPress}
         onTouchMove={handleTouchMove}
@@ -543,11 +562,11 @@ function RichEmailCard({
   isSentByMe: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // 1. Try DOM Selection copy (100% native CF_HTML support in Windows/Mac clipboard)
     const tempContainer = document.createElement('div');
     tempContainer.style.position = 'fixed';
     tempContainer.style.left = '-9999px';
@@ -588,7 +607,6 @@ function RichEmailCard({
       return;
     }
 
-    // 2. Fallback: Modern ClipboardItem API
     const fullHtml = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;"><h2 style="font-size: 18px; font-weight: bold;">${subject}</h2><div>${html}</div></div>`;
     const tmp = document.createElement('DIV');
     tmp.innerHTML = html;
@@ -628,46 +646,95 @@ function RichEmailCard({
 
   return (
     <div
-      className={`p-4 rounded-2xl max-w-md w-full border shadow-xl overflow-hidden flex flex-col gap-2.5 ${
+      className={`p-4 max-w-sm w-full border shadow-md flex flex-col gap-2.5 ${
         isSentByMe
-          ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--text-primary)] rounded-br-sm'
-          : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-sm'
+          ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/35 text-[var(--text-primary)] rounded-2xl rounded-br-sm'
+          : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-primary)] rounded-2xl rounded-bl-sm'
       }`}
     >
-      <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-2">
+      <div className="flex items-center justify-between border-b border-[var(--border-color)]/30 pb-2">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center">
-            <Mail size={13} />
+          <div className="w-6 h-6 bg-purple-500/20 text-purple-400 flex items-center justify-center rounded-md">
+            <Mail size={12} />
           </div>
-          <span className="font-semibold text-xs text-purple-400">Formatted Email</span>
+          <span className="font-semibold text-[10px] text-purple-400 uppercase tracking-wider">Email Message</span>
         </div>
-
-        {/* Remote / Local Copy Button */}
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] cursor-pointer transition-colors"
-          title="Copy Email Content"
+          className="text-[10px] font-semibold px-2 py-1 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] cursor-pointer transition-colors rounded-md"
         >
-          {copied ? (
-            <>
-              <Check size={12} className="text-emerald-500" />
-              <span className="text-emerald-500">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy size={12} />
-              <span>Copy</span>
-            </>
-          )}
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
 
-      <div className="text-sm font-bold text-[var(--text-primary)] tracking-wide">{subject}</div>
-      <div
-        className="tiptap-rendered-content text-xs leading-relaxed max-w-none text-[var(--text-primary)] border-t border-[var(--border-color)] pt-2"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      <div className="text-xs font-semibold text-[var(--text-primary)] truncate" title={subject}>
+        Subject: {subject}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setIsModalOpen(true)}
+        className="w-full py-2 bg-[var(--accent-primary)] hover:opacity-95 text-white border-none text-xs font-bold cursor-pointer transition-colors rounded-lg shadow-sm"
+      >
+        View Full Email
+      </button>
+
+      {/* Full Email Modal Overlay */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div 
+            className="relative w-full max-w-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col max-h-[85vh] overflow-hidden rounded-none shadow-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-purple-500/20 text-purple-400 flex items-center justify-center rounded-none shadow-none">
+                  <Mail size={13} />
+                </div>
+                <span className="font-bold text-xs text-purple-400 uppercase tracking-wider">Email Content</span>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-none bg-transparent cursor-pointer rounded-none"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 p-5 md:p-6 overflow-y-auto bg-[var(--bg-primary)] no-select-drag">
+              <h2 className="text-sm md:text-base font-bold text-[var(--text-primary)] mb-3">Subject: {subject}</h2>
+              <div 
+                className="tiptap-rendered-content text-xs md:text-sm leading-relaxed text-[var(--text-primary)] border-t border-[var(--border-color)]/30 pt-3"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end px-5 py-3 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] gap-2">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] text-xs font-semibold cursor-pointer transition-colors rounded-none shadow-none"
+              >
+                {copied ? 'Copied!' : 'Copy Content'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-[var(--accent-primary)] hover:opacity-90 text-white border-none text-xs font-semibold cursor-pointer transition-colors rounded-none shadow-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
