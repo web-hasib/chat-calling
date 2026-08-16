@@ -23,7 +23,7 @@ import {
   Mail, X, Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Quote, Link as LinkIcon, Undo, Redo, Eraser, Send, Heading1, Heading2, Heading3,
-  Highlighter, Table as TableIcon, CheckSquare, Minus, Type, FileText
+  Highlighter, Table as TableIcon, CheckSquare, Minus, Type, FileText, AlertCircle
 } from 'lucide-react';
 
 interface RichEmailModalProps {
@@ -83,10 +83,24 @@ export function RichEmailModal({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [linkUrlInput, setLinkUrlInput] = useState('');
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((curr) => (curr === msg ? null : curr));
+    }, 3500);
+  };
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: false,
+        underline: false,
+      }),
       TextStyle,
       Color,
       FontFamily,
@@ -115,14 +129,18 @@ export function RichEmailModal({
   if (!isOpen || !editor) return null;
 
   const handleSetLink = () => {
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL link address:', previousUrl || '');
-    if (url === null) return;
-    if (url === '') {
+    const previousUrl = editor.getAttributes('link').href || '';
+    setLinkUrlInput(previousUrl);
+    setLinkModalOpen(true);
+  };
+
+  const handleConfirmLink = () => {
+    if (!linkUrlInput.trim()) {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrlInput.trim() }).run();
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    setLinkModalOpen(false);
   };
 
   const handleApplyTemplate = (tpl: { subject: string; html: string }) => {
@@ -138,7 +156,7 @@ export function RichEmailModal({
   const handleSendEmail = () => {
     const htmlContent = editor.getHTML();
     if (!subject.trim()) {
-      alert('Please enter a subject or title for your email message.');
+      showToast('Please enter a subject or title for your email message.');
       return;
     }
     onSend(subject.trim(), htmlContent);
@@ -553,6 +571,79 @@ export function RichEmailModal({
             Send Formatted Email
           </button>
         </div>
+
+        {/* Custom Toast Notification */}
+        {toastMessage && (
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-4 py-3 bg-[#1e1724]/95 text-[#f87171] border border-[#ef4444]/40 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-3 duration-200">
+            <AlertCircle size={17} className="shrink-0 text-[#ef4444]" />
+            <span className="text-xs font-medium text-gray-100">{toastMessage}</span>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="ml-2 text-gray-400 hover:text-white p-0.5 rounded transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Custom Insert Link Modal */}
+        {linkModalOpen && (
+          <div className="absolute inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-[#181d28] border border-[#2e384d] rounded-xl shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <LinkIcon size={16} className="text-indigo-400" />
+                  <span>Insert / Edit Link</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLinkModalOpen(false)}
+                  className="text-gray-400 hover:text-white p-1 rounded"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Target URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={linkUrlInput}
+                  onChange={(e) => setLinkUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleConfirmLink();
+                    }
+                  }}
+                  autoFocus
+                  className="w-full px-3 py-2 bg-[#0d1017] border border-[#2a3449] rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setLinkModalOpen(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmLink}
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow transition-colors"
+                >
+                  Apply Link
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

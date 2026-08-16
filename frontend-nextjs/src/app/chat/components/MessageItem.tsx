@@ -291,34 +291,62 @@ export function MessageItem({
               />
             );
           })()
-        ) : (
-          <div
-            className={`px-4 py-3 rounded-[16px] text-sm leading-normal break-words overflow-wrap-anywhere whitespace-pre-wrap relative ${isSentByMe ? 'bg-[var(--accent-primary)] text-white rounded-br-[4px]' : 'bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-[4px]'}`}
-            style={
-              isSentByMe
-                ? activeThemeGradient
-                  ? { background: activeThemeGradient }
-                  : activeThemeColor
-                  ? { background: activeThemeColor }
+        ) : (() => {
+          const content = (msg.content || '').trim();
+          // Regex to check if the message consists ONLY of 1 to 3 emojis
+          const emojiOnlyRegex = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\uFE0F|\u200D|\u20E3|\s)+$/u;
+          const isEmojiOnly = content.length > 0 && emojiOnlyRegex.test(content);
+          
+          if (isEmojiOnly) {
+            // Count approximate emoji count
+            const emojiSegments = Array.from(new Intl.Segmenter().segment(content)).filter(s => s.segment.trim().length > 0);
+            const isSingleEmoji = emojiSegments.length === 1;
+            const isFewEmojis = emojiSegments.length > 1 && emojiSegments.length <= 4;
+            
+            return (
+              <div
+                className={`py-1 px-1 leading-none select-none ${
+                  isSingleEmoji
+                    ? 'text-5xl md:text-6xl my-1 hover:scale-110 transition-transform duration-150 origin-bottom'
+                    : isFewEmojis
+                    ? 'text-4xl md:text-5xl my-1'
+                    : 'text-2xl'
+                }`}
+              >
+                {content}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              className={`px-4 py-3 rounded-[16px] text-sm leading-normal break-words overflow-wrap-anywhere whitespace-pre-wrap relative ${isSentByMe ? 'bg-[var(--accent-primary)] text-white rounded-br-[4px]' : 'bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-[4px]'}`}
+              style={
+                isSentByMe
+                  ? activeThemeGradient
+                    ? { background: activeThemeGradient }
+                    : activeThemeColor
+                    ? { background: activeThemeColor }
+                    : undefined
                   : undefined
-                : undefined
-            }
-          >
-            {msg.content}
-            {/* Lej / Tail using Clip Path */}
-            {isSentByMe ? (
-              <div 
-                className="absolute bottom-0 -right-2 w-3.5 h-[18px] bg-inherit" 
-                style={{ clipPath: 'polygon(0 0, 0 100%, 100% 100%, 0 0)' }}
-              />
-            ) : (
-              <div 
-                className="absolute bottom-[-1px] -left-2 w-3.5 h-[18px] bg-inherit border-l border-b border-[var(--border-color)]" 
-                style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%, 100% 0)' }}
-              />
-            )}
-          </div>
-        )}
+              }
+            >
+              {msg.content}
+              {/* Lej / Tail using Clip Path */}
+              {isSentByMe ? (
+                <div 
+                  className="absolute bottom-0 -right-2 w-3.5 h-[18px] bg-inherit" 
+                  style={{ clipPath: 'polygon(0 0, 0 100%, 100% 100%, 0 0)' }}
+                />
+              ) : (
+                <div 
+                  className="absolute bottom-[-1px] -left-2 w-3.5 h-[18px] bg-inherit border-l border-b border-[var(--border-color)]" 
+                  style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%, 100% 0)' }}
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* Rich Link Preview Card */}
         {msg.linkPreview && (
