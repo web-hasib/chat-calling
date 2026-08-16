@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { showPushNotification, playMessageNotificationSound } from '../utils/notifications';
 
 export function useChat(
   user: any,
@@ -433,6 +434,23 @@ export function useChat(
           unreadCount: newUnread,
         };
         updated.splice(index, 1);
+
+        // Trigger Web Push Notification & Sound Tone if from another user
+        if (!isMsgFromMe) {
+          const senderName = msg.sender?.name || 'Someone';
+          const msgContent = msg.fileUrl ? (msg.fileType === 'IMAGE' ? '📷 Sent an image' : '📎 Sent a file') : (msg.content || 'New message');
+          
+          // Sound tone
+          playMessageNotificationSound();
+
+          // Push alert
+          showPushNotification(senderName, {
+            body: msgContent,
+            tag: `chat-${msg.conversationId}`,
+            data: { conversationId: msg.conversationId }
+          });
+        }
+
         return [convo, ...updated];
       });
       setActiveConvo((current: any) => {

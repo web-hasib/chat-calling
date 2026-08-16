@@ -93,6 +93,11 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Hide Next.js dev tools floating badge/portal */
+nextjs-portal, [data-nextjs-toast], #__next-build-watcher {
+  display: none !important;
+}
+
 @supports (padding: max(0px)) {
   body {
     padding-left: env(safe-area-inset-left);

@@ -121,7 +121,7 @@ export function RichEmailModal({
     content: `<p>Hi ${recipientName},</p><p>Write your formatted message here...</p>`,
     editorProps: {
       attributes: {
-        class: 'prose max-w-none focus:outline-none min-h-[220px] p-5 text-sm text-[var(--text-primary)]',
+        class: 'prose max-w-none focus:outline-none min-h-[140px] md:min-h-[220px] p-4 md:p-5 text-sm text-[var(--text-primary)]',
       },
     },
   });
@@ -164,32 +164,32 @@ export function RichEmailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex flex-col max-h-[95vh] md:max-h-[92vh] overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: activeThemeColor }}>
+        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 rounded-xl hidden sm:flex items-center justify-center text-white shadow-md shrink-0" style={{ backgroundColor: activeThemeColor }}>
               <Mail size={19} />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-[var(--text-primary)] leading-tight">Formatted Email Message</h3>
-              <p className="text-[11px] text-[var(--text-secondary)] font-normal">Create styled messages with Tiptap Editor</p>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] leading-tight truncate">Formatted Email Message</h3>
+              <p className="text-[11px] text-[var(--text-secondary)] font-normal hidden sm:block">Create styled messages with Tiptap Editor</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Preset Templates */}
             <div className="relative">
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowTemplates(!showTemplates)}
-                className="px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-2.5 py-1.5 sm:px-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
               >
-                <FileText size={13} />
-                <span>Templates</span>
+                <FileText size={13} className="shrink-0" />
+                <span className="hidden sm:inline">Templates</span>
               </button>
 
               {showTemplates && (
@@ -220,7 +220,7 @@ export function RichEmailModal({
         </div>
 
         {/* Subject Line Input */}
-        <div className="px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center gap-3">
+        <div className="px-4 py-2.5 md:px-6 md:py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center gap-3">
           <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider shrink-0">SUBJECT:</label>
           <input
             type="text"
@@ -232,7 +232,7 @@ export function RichEmailModal({
         </div>
 
         {/* Tiptap Rich Formatting Toolbar */}
-        <div className="px-4 py-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] flex flex-wrap items-center gap-1">
+        <div className="px-3 py-1.5 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] flex flex-nowrap overflow-x-auto md:flex-wrap items-center gap-1 scrollbar-none shrink-0 [&>button]:shrink-0 [&>div]:shrink-0">
 
           {/* Headings */}
           <button
@@ -557,12 +557,12 @@ export function RichEmailModal({
         </div>
 
         {/* Tiptap Editor Box */}
-        <div className="flex-1 overflow-y-auto bg-[var(--bg-primary)] min-h-[240px]">
+        <div className="flex-1 overflow-y-auto bg-[var(--bg-primary)] min-h-[160px] md:min-h-[240px]">
           <EditorContent editor={editor} />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-6 py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] gap-3">
+        <div className="flex items-center justify-end px-4 py-3 md:px-6 md:py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] gap-2 md:gap-3">
           <button
             type="button"
             onClick={onClose}

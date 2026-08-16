@@ -40,6 +40,67 @@ export function MessageItem({
   onToggleReaction, onDeleteToggle, onConfirmDelete,
   onScrollToMessage, onOpenLightbox,
 }: MessageItemProps) {
+  const [showMobileActionBar, setShowMobileActionBar] = useState(false);
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressActiveRef = useRef(false);
+
+  const startLongPress = useCallback(() => {
+    isLongPressActiveRef.current = false;
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+    }
+    longPressTimeoutRef.current = setTimeout(() => {
+      isLongPressActiveRef.current = true;
+      setShowMobileActionBar((prev) => !prev);
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(50);
+      }
+    }, 500);
+  }, []);
+
+  const cancelLongPress = useCallback((e: React.TouchEvent) => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    if (isLongPressActiveRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      isLongPressActiveRef.current = false;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimeoutRef.current) {
+        clearTimeout(longPressTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showMobileActionBar) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      const container = document.getElementById(`msg-${msg.id}`);
+      if (container && !container.contains(e.target as Node)) {
+        setShowMobileActionBar(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [showMobileActionBar, msg.id]);
+
   if (msg.isDeleted) {
     return (
       <div
@@ -70,7 +131,7 @@ export function MessageItem({
           rounded-xl px-1.5 py-0.5 shadow-xl
           transition-opacity duration-150
           before:absolute before:-bottom-3 before:left-0 before:right-0 before:h-4 before:content-['']
-          ${isPickerOpen
+          ${isPickerOpen || showMobileActionBar
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
           }
@@ -81,7 +142,10 @@ export function MessageItem({
         <button
           type="button"
           title="React with Emoji"
-          onClick={() => onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id)}
+          onClick={() => {
+            onReactionPickerToggle(activeReactionPickerId === msg.id ? null : msg.id);
+            setShowMobileActionBar(false);
+          }}
           className="flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
         >
           <Smile size={13} />
@@ -91,7 +155,10 @@ export function MessageItem({
         <button
           type="button"
           title="Reply"
-          onClick={() => onReply(msg)}
+          onClick={() => {
+            onReply(msg);
+            setShowMobileActionBar(false);
+          }}
           className="flex items-center justify-center w-6 h-6 rounded-lg border-none cursor-pointer transition-colors duration-100 bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
         >
           <Reply size={13} />
@@ -135,19 +202,39 @@ export function MessageItem({
 
       {/* Custom Any Emoji Picker Popover */}
       {activeCustomEmojiMsgId === msg.id && (
-        <div className={`absolute -top-[390px] z-50 shadow-lg rounded-lg overflow-hidden ${isSentByMe ? 'right-0' : 'left-0'}`} ref={customReactionPickerRef}>
-          <EmojiPicker
-            onEmojiClick={(emojiData) => onToggleReaction(msg.id, emojiData.emoji)}
-            theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
-            searchDisabled={false}
-            width={320}
-            height={380}
-          />
+        <div 
+          className="fixed inset-0 bg-black/60 z-[2000] flex items-end justify-center md:absolute md:inset-auto md:-top-[390px] md:z-50 md:bg-transparent md:flex md:items-stretch md:justify-start"
+          onClick={() => onCustomEmojiMsgToggle(null)}
+        >
+          <div 
+            className={`w-full bg-[var(--bg-secondary)] rounded-t-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 md:w-[320px] md:rounded-lg md:animate-none ${isSentByMe ? 'md:right-0' : 'md:left-0'}`}
+            onClick={(e) => e.stopPropagation()}
+            ref={customReactionPickerRef}
+          >
+            {/* Drag indicator bar for mobile drawer */}
+            <div className="h-1.5 w-12 bg-[var(--border-color)] rounded-full mx-auto my-3 md:hidden" />
+            <EmojiPicker
+              onEmojiClick={(emojiData) => {
+                onToggleReaction(msg.id, emojiData.emoji);
+                onCustomEmojiMsgToggle(null);
+              }}
+              theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+              searchDisabled={false}
+              width="100%"
+              height={380}
+            />
+          </div>
         </div>
       )}
 
       {/* Message Bubble Box */}
-      <div className={`max-w-full w-fit flex flex-col relative`}>
+      <div 
+        className="max-w-full w-fit flex flex-col relative"
+        onTouchStart={startLongPress}
+        onTouchEnd={cancelLongPress}
+        onTouchMove={handleTouchMove}
+        onTouchCancel={handleTouchMove}
+      >
         {/* Quoted Reply Box inside Message */}
         {msg.replyTo && (
           <div 

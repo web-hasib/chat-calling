@@ -7,6 +7,9 @@ import { useSocket } from '../../context/SocketContext';
 import { ChatProvider, useChatContext } from '../../context/ChatContext';
 import { Sidebar } from './components/Sidebar';
 import { EditProfileModal } from './components/EditProfileModal';
+import { SettingsPage } from './components/SettingsPage';
+import { CreateGroupModal } from './components/CreateGroupModal';
+import { JoinGroupModal } from './components/JoinGroupModal';
 
 function ChatLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, token, logout, loading, updateProfile } = useAuth();
@@ -22,7 +25,8 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
     conversations, activeConvo, setActiveConvo,
     users, conversationsLoading,
     fetchConversations, fetchUsers, selectConvo,
-    getRecipientInfo, getRecipientDisplayName
+    getRecipientInfo, getRecipientDisplayName,
+    createGroup, joinGroup
   } = chat;
 
   // UI state
@@ -31,6 +35,10 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Group modal triggers
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showJoinGroup, setShowJoinGroup] = useState(false);
 
   // Edit profile state
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -120,7 +128,6 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
     setProfileError('');
     setProfileSuccess(false);
     setShowEditProfile(true);
-    setShowSettings(false);
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,7 +158,11 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
     setProfileSuccess(false);
     setProfileUpdating(true);
     try {
-      await updateProfile(editName.trim(), editUsername.trim().toLowerCase(), editAvatarUrl);
+      await updateProfile({
+        name: editName.trim(),
+        username: editUsername.trim().toLowerCase(),
+        avatarUrl: editAvatarUrl
+      });
       setProfileSuccess(true);
       setTimeout(() => setShowEditProfile(false), 1500);
     } catch (err: any) {
@@ -208,7 +219,7 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen w-screen bg-[var(--bg-primary)] overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar: Visible when not inside a chat thread or on desktop */}
       <div className={`${isChatView ? 'hidden' : 'w-full'} md:w-auto md:block shrink-0`}>
         <Sidebar
           user={user}
@@ -230,17 +241,57 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
           activeConvo={activeConvo}
           onlineUsers={onlineUsers}
           startChatWithUser={handleStartChatWithUser}
-          selectConvo={handleSelectConvo}
+          selectConvo={(c) => { setShowSettings(false); handleSelectConvo(c); }}
           getRecipientInfo={getRecipientInfo}
           getRecipientDisplayName={getRecipientDisplayName}
           currentUserId={user.id}
+          updateProfile={updateProfile}
         />
       </div>
 
-      {/* Main chat window container */}
+      {/* Desktop Main Pane: Settings or Chat */}
       <div className={`flex-grow flex flex-col bg-[var(--bg-primary)] overflow-hidden ${isChatView ? 'flex' : 'hidden'} md:flex`}>
-        {children}
+        {showSettings ? (
+          <SettingsPage
+            user={user}
+            theme={theme}
+            toggleTheme={toggleTheme}
+            openEditProfile={openEditProfile}
+            openCreateGroup={() => setShowCreateGroup(true)}
+            openJoinGroup={() => setShowJoinGroup(true)}
+            logout={logout}
+            onClose={() => setShowSettings(false)}
+            updateProfile={updateProfile}
+          />
+        ) : (
+          children
+        )}
       </div>
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <CreateGroupModal
+          users={users}
+          onClose={() => setShowCreateGroup(false)}
+          onSuccess={(convo) => {
+            setShowCreateGroup(false);
+            setShowSettings(false);
+            handleSelectConvo(convo);
+          }}
+        />
+      )}
+
+      {/* Join Group Modal */}
+      {showJoinGroup && (
+        <JoinGroupModal
+          onClose={() => setShowJoinGroup(false)}
+          onSuccess={(convo) => {
+            setShowJoinGroup(false);
+            setShowSettings(false);
+            handleSelectConvo(convo);
+          }}
+        />
+      )}
 
       {/* Profile Modal */}
       {showEditProfile && (

@@ -177,18 +177,9 @@ export const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Connecting...</span>
                   ) : (
                     <>
-                      {isMuted ? (
-                        <span className={styles.muteIndicator} title="Muted">
-                          <MicOff size={15} />
-                        </span>
-                      ) : (
-                        <span className={styles.activeIndicator} title="Active">
-                          <Mic size={15} />
-                        </span>
-                      )}
-                      {isAdmin && (
+                      {isAdmin ? (
                         <button
-                          className={styles.adminMuteUserBtn}
+                          className={`${styles.adminMuteUserBtn} ${isMuted ? styles.mutedUserBtn : styles.activeUserBtn}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isMuted) {
@@ -197,10 +188,20 @@ export const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
                               onAdminMuteUser(p.userId);
                             }
                           }}
-                          title={isMuted ? 'Unmute User' : 'Mute User'}
+                          title={isMuted ? 'Click to Unmute User' : 'Click to Mute User'}
                         >
-                          {isMuted ? <Mic size={13} /> : <MicOff size={13} />}
+                          {isMuted ? <MicOff size={15} /> : <Mic size={15} />}
                         </button>
+                      ) : (
+                        isMuted ? (
+                          <span className={styles.muteIndicator} title="Muted">
+                            <MicOff size={15} />
+                          </span>
+                        ) : (
+                          <span className={styles.activeIndicator} title="Active">
+                            <Mic size={15} />
+                          </span>
+                        )
                       )}
                     </>
                   )}

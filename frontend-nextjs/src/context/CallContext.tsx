@@ -1017,6 +1017,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }],
         };
       });
+
+      // Broadcast our current media state so the newly joined user gets it
+      const stream = groupLocalStreamRef.current;
+      const videoTrack = stream?.getVideoTracks()[0];
+      const audioTrack = stream?.getAudioTracks()[0];
+      socket.emit('group-call-media-state', {
+        conversationId: data.conversationId,
+        videoEnabled: videoTrack ? videoTrack.enabled : false,
+        audioEnabled: audioTrack ? audioTrack.enabled : true,
+        handRaised: isHandRaisedRef.current,
+        footRaised: isFootRaisedRef.current,
+      });
     });
 
     socket.on('group-call-offer', async (data: {

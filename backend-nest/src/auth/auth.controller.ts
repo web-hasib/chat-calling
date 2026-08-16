@@ -47,7 +47,18 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Put('profile')
-  async updateProfile(@Req() req, @Body() body: { name?: string; username?: string; avatarUrl?: string }) {
+  async updateProfile(
+    @Req() req,
+    @Body() body: {
+      name?: string;
+      username?: string;
+      avatarUrl?: string;
+      pushNotificationsEnabled?: boolean;
+      soundEffectsEnabled?: boolean;
+      messageTone?: string;
+      callTone?: string;
+    }
+  ) {
     const user = await this.authService.updateProfile(req.user.id, body);
     return { user };
   }

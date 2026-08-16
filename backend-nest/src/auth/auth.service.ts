@@ -66,7 +66,18 @@ export class AuthService {
     return result;
   }
 
-  async updateProfile(userId: string, data: { name?: string; username?: string; avatarUrl?: string }) {
+  async updateProfile(
+    userId: string,
+    data: {
+      name?: string;
+      username?: string;
+      avatarUrl?: string;
+      pushNotificationsEnabled?: boolean;
+      soundEffectsEnabled?: boolean;
+      messageTone?: string;
+      callTone?: string;
+    }
+  ) {
     if (data.username) {
       const usernameLower = data.username.trim().toLowerCase();
       const existing = await this.prisma.user.findUnique({

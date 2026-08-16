@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import styles from './CallOverlay.module.css';
 import { Phone, PhoneOff, Mic, MicOff, Video as VideoOn, VideoOff, Monitor, Settings } from 'lucide-react';
 import { DeviceSettingsModal } from './DeviceSettingsModal';
+import { startIncomingCallRingtoneLoop, stopIncomingCallRingtoneLoop } from '../utils/notifications';
 
 interface OneToOneCallOverlayProps {
   activeCall: {
@@ -98,6 +99,17 @@ export const OneToOneCallOverlay: React.FC<OneToOneCallOverlayProps> = ({
       remoteVideoElRef.current.srcObject = remoteStream;
     }
   }, [remoteStream, activeCall.status]);
+
+  useEffect(() => {
+    if (activeCall.status === 'ringing' && activeCall.role === 'receiver') {
+      startIncomingCallRingtoneLoop();
+    } else {
+      stopIncomingCallRingtoneLoop();
+    }
+    return () => {
+      stopIncomingCallRingtoneLoop();
+    };
+  }, [activeCall.status, activeCall.role]);
 
   const isRinging = activeCall.status === 'ringing';
   const isConnected = activeCall.status === 'connected';

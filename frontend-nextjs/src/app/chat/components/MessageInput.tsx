@@ -260,14 +260,28 @@ export function MessageInput({
         )}
 
         {showEmojiPicker && (
-          <div className="absolute bottom-[76px] right-[70px] z-[1000] shadow-lg rounded-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200" ref={emojiPickerRef}>
-            <EmojiPicker
-              onEmojiClick={onEmojiClick}
-              theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
-              searchDisabled={false}
-              width={340}
-              height={400}
-            />
+          <div 
+            className="fixed inset-0 bg-black/60 z-[1000] flex items-end justify-center md:absolute md:inset-auto md:bottom-[76px] md:right-[70px] md:bg-transparent md:flex md:items-stretch md:justify-start"
+            onClick={onToggleEmojiPicker}
+          >
+            <div 
+              className="w-full bg-[var(--bg-secondary)] rounded-t-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 md:w-[340px] md:rounded-lg md:animate-none"
+              onClick={(e) => e.stopPropagation()}
+              ref={emojiPickerRef}
+            >
+              {/* Drag indicator bar for mobile drawer */}
+              <div className="h-1.5 w-12 bg-[var(--border-color)] rounded-full mx-auto my-3 md:hidden" />
+              <EmojiPicker
+                onEmojiClick={(emojiData) => {
+                  onEmojiClick(emojiData);
+                  onToggleEmojiPicker(); // Automatically close picker after selection on mobile
+                }}
+                theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+                searchDisabled={false}
+                width="100%"
+                height={380}
+              />
+            </div>
           </div>
         )}
 

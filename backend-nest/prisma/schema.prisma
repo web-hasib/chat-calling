@@ -14,6 +14,10 @@ model User {
   password      String?
   name          String?
   avatarUrl     String?
+  pushNotificationsEnabled Boolean?      @default(true)
+  soundEffectsEnabled      Boolean?      @default(true)
+  messageTone              String?       @default("chime")
+  callTone                 String?       @default("classic")
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
   conversations ConversationParticipant[]

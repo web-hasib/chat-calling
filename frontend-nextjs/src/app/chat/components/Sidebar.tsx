@@ -1,7 +1,10 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, MessageSquare, Users, Settings, Sun, Moon, LogOut, Plus, Link2, X, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Users, Settings, Sun, Moon, LogOut, Plus, Link2, X, GroupIcon } from 'lucide-react';
 import { useChatContext } from '../../../context/ChatContext';
 import { useAuth } from '../../../context/AuthContext';
+import { CreateGroupModal } from './CreateGroupModal';
+import { JoinGroupModal } from './JoinGroupModal';
+import { SettingsPage } from './SettingsPage';
 
 interface SidebarProps {
   user: any;
@@ -27,6 +30,12 @@ interface SidebarProps {
   getRecipientInfo: (c: any) => any;
   getRecipientDisplayName: (c: any) => string;
   currentUserId: string;
+  updateProfile: (data: {
+    pushNotificationsEnabled?: boolean;
+    soundEffectsEnabled?: boolean;
+    messageTone?: string;
+    callTone?: string;
+  }) => Promise<void>;
 }
 
 export function Sidebar({
@@ -37,7 +46,7 @@ export function Sidebar({
   searchQuery, users, conversations, conversationsLoading,
   activeConvo, onlineUsers,
   startChatWithUser, selectConvo, getRecipientInfo, getRecipientDisplayName,
-  currentUserId,
+  currentUserId, updateProfile,
 }: SidebarProps) {
   const { createGroup, joinGroup } = useChatContext();
   const { token } = useAuth();
@@ -75,17 +84,62 @@ export function Sidebar({
     });
   }, [conversations, activeFilter]);
 
+  // Mobile bottom navigation active tab synced with props
+  const [mobileTab, setMobileTab] = React.useState<'chats' | 'users' | 'groups' | 'settings'>('chats');
+
+  React.useEffect(() => {
+    if (showSettings) {
+      setMobileTab('settings');
+    } else if (showUserList) {
+      setMobileTab('users');
+    } else if (activeFilter === 'groups') {
+      setMobileTab('groups');
+    } else {
+      setMobileTab('chats');
+    }
+  }, [showSettings, showUserList, activeFilter]);
+
+  // Handle bottom tab change
+  const handleMobileTabChange = (tab: 'chats' | 'users' | 'groups' | 'settings') => {
+    setMobileTab(tab);
+    if (tab === 'chats') {
+      setShowUserList(false);
+      setActiveFilter('all');
+      setShowSettings(false);
+    } else if (tab === 'users') {
+      setShowUserList(true);
+      setShowSettings(false);
+    } else if (tab === 'groups') {
+      setShowUserList(false);
+      setActiveFilter('groups');
+      setShowSettings(false);
+    } else if (tab === 'settings') {
+      setShowSettings(true);
+    }
+  };
+
   return (
     <div className={`flex flex-col h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)] transition-all duration-200 shrink-0 w-full md:w-auto ${sidebarCollapsed ? 'md:w-[76px]' : 'md:w-[320px]'}`}>
-      <div className={`flex items-center justify-between border-b border-[var(--border-color)] ${sidebarCollapsed ? 'p-4 flex-col gap-4' : 'px-5 py-6'}`}>
+      
+      {/* ── Top Header ── */}
+      <div className={`flex items-center justify-between border-b border-[var(--border-color)] ${sidebarCollapsed ? 'p-4 flex-col gap-4' : 'px-5 py-4.5'}`}>
         <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'flex-col text-center' : ''}`}>
-          <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+          <div
+            className="relative cursor-pointer"
+            onClick={() => setShowSettings(!showSettings)}
+            title="Settings & Profile"
+          >
+            <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-[var(--accent-primary)]/30" />
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-[var(--accent-success)] border-2 border-[var(--bg-secondary)] rounded-full" />
+          </div>
           <div className={sidebarCollapsed ? 'hidden' : ''}>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Chats</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)] leading-tight">{user.name || 'Chats'}</h2>
             <div className="text-[11px] text-[var(--text-secondary)]">@{user.username || 'user'}</div>
           </div>
         </div>
-        <div className="flex gap-2 items-center relative" style={{ flexDirection: sidebarCollapsed ? 'column' : 'row' }}>
+
+        {/* Top Header Actions (Clean & Minimal) */}
+        <div className="flex gap-1.5 items-center relative" style={{ flexDirection: sidebarCollapsed ? 'column' : 'row' }}>
           <button
             className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -93,134 +147,116 @@ export function Sidebar({
           >
             {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
-          <button
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
-            onClick={() => { setShowUserList(!showUserList); setSearchQuery(''); }}
-            title={showUserList ? 'Show Conversations' : 'Start New Conversation'}
-          >
-            {showUserList ? <MessageSquare size={18} /> : <Users size={18} />}
-          </button>
+
+          {/* Desktop quick create group */}
           {!sidebarCollapsed && (
-            <>
-              <button
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
-                onClick={() => setShowCreateGroup(true)}
-                title="Create Group Chat"
-              >
-                <Plus size={18} />
-              </button>
-              <button
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
-                onClick={() => setShowJoinGroup(true)}
-                title="Join Group by Code"
-              >
-                <Link2 size={18} />
-              </button>
-            </>
+            <button
+              className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+              onClick={() => setShowCreateGroup(true)}
+              title="Create Group Chat"
+            >
+              <Plus size={18} />
+            </button>
           )}
+
+          {/* Settings trigger (Desktop only - mobile has bottom tab) */}
           <button
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+            className={`hidden md:flex w-8 h-8 rounded-full items-center justify-center transition-colors cursor-pointer ${
+              showSettings
+                ? 'bg-[var(--accent-primary)] text-white'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+            }`}
             onClick={() => setShowSettings(!showSettings)}
-            title="Settings & Theme"
+            title="Settings & Preferences"
           >
             <Settings size={18} />
           </button>
-
-          {showSettings && (
-            <>
-              <div className="fixed inset-0 z-[140] bg-black/50 md:bg-transparent" onClick={() => setShowSettings(false)} />
-              <div className={`absolute z-[150] w-[240px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-5 flex flex-col gap-5 shadow-lg ${sidebarCollapsed ? 'left-[50px] top-[40px]' : 'right-0 top-11'}`}>
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold text-[var(--text-secondary)]">App Theme</span>
-                  <div className="flex bg-[var(--bg-tertiary)] rounded-md p-[3px] border border-[var(--border-color)] w-full">
-                    <button className={`flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded-sm text-xs font-medium cursor-pointer transition-colors ${theme === 'light' ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)]'}`} onClick={() => toggleTheme('light')}>
-                      <Sun size={14} /><span>Light</span>
-                    </button>
-                    <button className={`flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded-sm text-xs font-medium cursor-pointer transition-colors ${theme === 'dark' ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)]'}`} onClick={() => toggleTheme('dark')}>
-                      <Moon size={14} /><span>Dark</span>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold text-[var(--text-secondary)]">Account</span>
-                  <button
-                    className="flex items-center justify-between p-2 rounded-md text-xs font-medium cursor-pointer w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors mb-2"
-                    onClick={openEditProfile}
-                  >
-                    <span>Edit Profile</span><Users size={14} />
-                  </button>
-                  <button className="flex items-center justify-between p-2 rounded-md text-xs font-medium cursor-pointer w-full bg-red-500/10 text-red-400 border border-red-500/15 hover:bg-red-500/20 hover:border-red-500/30 transition-colors" onClick={logout}>
-                    <span>Log Out</span><LogOut size={14} />
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </div>
 
-      <div className={`p-3 border-b border-[var(--border-color)] flex flex-col gap-2.5 ${sidebarCollapsed ? 'hidden' : ''}`}>
-        <input
-          type="text"
-          placeholder="Search by username, name, or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent-primary)] transition-colors"
-        />
+      {/* ── Mobile Settings View or Standard Search & Convo List ── */}
+      {showSettings ? (
+        <div className="md:hidden flex-grow flex flex-col overflow-y-auto">
+          <SettingsPage
+            user={user}
+            theme={theme}
+            toggleTheme={toggleTheme}
+            openEditProfile={openEditProfile}
+            openCreateGroup={() => setShowCreateGroup(true)}
+            openJoinGroup={() => setShowJoinGroup(true)}
+            logout={logout}
+            onClose={() => setShowSettings(false)}
+            updateProfile={updateProfile}
+          />
+        </div>
+      ) : (
+        <>
+          {/* ── Search & Filter Pill Bar ── */}
+          <div className={`p-3 border-b border-[var(--border-color)] flex flex-col gap-2.5 ${sidebarCollapsed ? 'hidden' : ''}`}>
+            <input
+              type="text"
+              placeholder="Search by username, name, or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent-primary)] transition-colors placeholder:text-[var(--text-secondary)]"
+            />
 
-        {/* Messenger-style Filter Tabs (All / Unread / Groups) */}
-        {!showUserList && !searchQuery && (
-          <div className="flex items-center gap-1.5 px-0.5">
-            <button
-              type="button"
-              onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
-                activeFilter === 'all'
-                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-400'
-                  : 'bg-white/5 border-white/5 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]'
-              }`}
-            >
-              All
-            </button>
+            {/* Messenger-style Filter Tabs (All / Unread / Groups) */}
+            {!showUserList && !searchQuery && (
+              <div className="flex items-center gap-1.5 px-0.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter('all')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+                    activeFilter === 'all'
+                      ? 'bg-blue-600/20 border-blue-500/40 text-blue-500'
+                      : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  All
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveFilter('unread')}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 ${
-                activeFilter === 'unread'
-                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-400'
-                  : 'bg-white/5 border-white/5 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <span>Unread</span>
-              {unreadConvosCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-blue-500 text-white rounded-full text-[10px] font-bold">
-                  {unreadConvosCount}
-                </span>
-              )}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter('unread')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                    activeFilter === 'unread'
+                      ? 'bg-blue-600/20 border-blue-500/40 text-blue-500'
+                      : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span>Unread</span>
+                  {unreadConvosCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-blue-500 text-white rounded-full text-[10px] font-bold shadow-sm">
+                      {unreadConvosCount}
+                    </span>
+                  )}
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveFilter('groups')}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 ${
-                activeFilter === 'groups'
-                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-400'
-                  : 'bg-white/5 border-white/5 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <span>Groups</span>
-              {groupsCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-white/15 text-[var(--text-secondary)] rounded-full text-[10px] font-bold">
-                  {groupsCount}
-                </span>
-              )}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter('groups')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                    activeFilter === 'groups'
+                      ? 'bg-blue-600/20 border-blue-500/40 text-blue-500'
+                      : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span>Groups</span>
+                  {groupsCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-[var(--border-color)] text-[var(--text-secondary)] rounded-full text-[10px] font-bold">
+                      {groupsCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      <div className="flex-grow overflow-y-auto p-3">
+      {/* ── Conversation / User List (Hidden when showSettings is active on mobile) ── */}
+      <div className={`flex-grow overflow-y-auto p-3 pb-20 md:pb-3 ${showSettings ? 'hidden md:block' : ''}`}>
         {showUserList || searchQuery ? (
           users.length > 0 ? (
             users.map((u) => {
@@ -344,7 +380,7 @@ export function Sidebar({
               </>
             ) : activeFilter === 'groups' ? (
               <>
-                <span className="text-lg">👥</span>
+                <span className="text-lg"><GroupIcon/></span>
                 <span>No group chats found.</span>
               </>
             ) : (
@@ -353,147 +389,164 @@ export function Sidebar({
           </div>
         )}
       </div>
-      {/* ── Create Group Modal ── */}
-      {showCreateGroup && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="w-[400px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-6 flex flex-col gap-4 shadow-2xl relative text-[var(--text-primary)] animate-in zoom-in-95 ease-out duration-200">
-            <button className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer" onClick={() => { setShowCreateGroup(false); setSelectedUserIds([]); setGroupName(''); }}>
-              <X size={18} />
-            </button>
-            <h3 className="text-lg font-bold">Create Group Chat</h3>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Group Name</label>
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Enter group name..."
-                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-primary)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Group Icon (Avatar)</label>
-              <div className="flex items-center gap-3">
-                {groupAvatar ? (
-                  <img src={groupAvatar} alt="Preview" className="w-10 h-10 rounded-full object-cover border border-[var(--border-color)]" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)]">No Icon</div>
-                )}
-                <label className="flex-grow py-2 px-3 border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] rounded-lg text-xs font-semibold text-center cursor-pointer transition-colors text-[var(--text-primary)]">
-                  {uploadingAvatar ? 'Uploading...' : 'Upload Image'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setUploadingAvatar(true);
-                      const formData = new FormData();
-                      formData.append('file', file);
-                      try {
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/chat/upload`, {
-                          method: 'POST',
-                          headers: { Authorization: `Bearer ${token}` },
-                          body: formData,
-                        });
-                        if (!res.ok) throw new Error('Upload failed');
-                        const data = await res.json();
-                        setGroupAvatar(data.fileUrl);
-                      } catch {
-                        alert('Failed to upload image.');
-                      } finally {
-                        setUploadingAvatar(false);
-                      }
-                    }}
-                    className="hidden"
-                    disabled={uploadingAvatar}
-                  />
-                </label>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Select Members</label>
-              <div className="overflow-y-auto flex flex-col gap-1 pr-1 max-h-[180px]">
-                {users.map((u) => (
-                  <label key={u.id} className="flex items-center justify-between p-2 rounded hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm">
-                    <div className="flex items-center gap-2">
-                      <img src={u.avatarUrl} alt={u.name} className="w-6 h-6 rounded-full object-cover" />
-                      <span>{u.name}</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.includes(u.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedUserIds([...selectedUserIds, u.id]);
-                        } else {
-                          setSelectedUserIds(selectedUserIds.filter(id => id !== u.id));
-                        }
-                      }}
-                      className="accent-[var(--accent-primary)] cursor-pointer"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-            <button
-              disabled={!groupName.trim() || selectedUserIds.length === 0 || creatingGroup}
-              onClick={async () => {
-                setCreatingGroup(true);
-                const convo = await createGroup(groupName, groupAvatar, selectedUserIds);
-                setCreatingGroup(false);
-                if (convo) {
-                  setShowCreateGroup(false);
-                  setGroupName('');
-                  setGroupAvatar('');
-                  setSelectedUserIds([]);
-                  selectConvo(convo);
-                }
-              }}
-              className="w-full py-2.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-semibold text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+
+      {/* ── Mobile App-Style Glassy Bottom Bar (/10 Opacity + Backdrop Blur) ── */}
+      <div className={`md:hidden absolute bottom-0 left-0 right-0 h-[64px] bg-[var(--bg-secondary)]/10 backdrop-blur-xl border-t border-[var(--border-color)]/20 z-40 shrink-0 flex items-center overflow-visible pointer-events-auto ${sidebarCollapsed ? 'hidden' : ''}`}>
+        
+        {/* Continuous Bottom Accent Line with subtle glow */}
+        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--accent-primary)] z-10 opacity-90 shadow-[0_-1px_6px_var(--accent-primary)]" />
+
+        {/* Animated Liquid Rise from Bottom over Active Tab */}
+        <div
+          className="absolute bottom-0 h-[64px] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none z-10 flex flex-col justify-end items-center"
+          style={{
+            width: '25%',
+            left: `${
+              mobileTab === 'chats' && !showUserList
+                ? 0
+                : showUserList || mobileTab === 'users'
+                ? 25
+                : mobileTab === 'groups'
+                ? 50
+                : 75
+            }%`,
+          }}
+        >
+          {/* Exactly Shaped Liquid Bulb/Droplet SVG Matching the Reference with Ultra-Smooth Tangential Base Edges */}
+          <div className="relative w-[84px] h-[58px] flex items-center justify-center -mb-[0.5px]">
+            <svg
+              viewBox="0 0 100 60"
+              className="w-full h-full text-[var(--accent-primary)] fill-current filter drop-shadow-[0_-4px_12px_rgba(37,99,235,0.45)]"
+              preserveAspectRatio="none"
             >
-              {creatingGroup ? 'Creating...' : 'Create Group'}
-            </button>
+              {/* Perfectly smooth tangential bottom flare into vertical waist and circular dome */}
+              <path d="M 0 60 C 20 60, 24 56, 28 36 C 30 20, 31 0, 50 0 C 69 0, 70 20, 72 36 C 76 56, 80 60, 100 60 Z" />
+            </svg>
           </div>
         </div>
+
+        {/* 4 Interactive Meaningful Flaticon-Style Tab Buttons */}
+        <div className="relative w-full h-full flex items-center z-20">
+          
+          {/* Tab 1: Chats (Flaticon Style Chat Message Bubble) */}
+          <button
+            type="button"
+            onClick={() => handleMobileTabChange('chats')}
+            className="flex-1 h-full flex items-center justify-center cursor-pointer border-none bg-transparent relative group"
+            title="All Chats"
+          >
+            <div
+              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                mobileTab === 'chats' && !showUserList
+                  ? 'text-white translate-y-0.5 scale-110'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {/* Flaticon Solid Chat Bubble */}
+              <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 10H6v-2h12v2zm0-3H6V7h12v2z" />
+              </svg>
+
+              {unreadConvosCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] px-0.5 bg-rose-500 text-white rounded-full text-[8px] font-black flex items-center justify-center ring-2 ring-[var(--bg-secondary)] shadow-sm">
+                  {unreadConvosCount > 9 ? '9+' : unreadConvosCount}
+                </span>
+              )}
+            </div>
+          </button>
+
+          {/* Tab 2: People / Contacts (Flaticon Solid Contact User) */}
+          <button
+            type="button"
+            onClick={() => handleMobileTabChange('users')}
+            className="flex-1 h-full flex items-center justify-center cursor-pointer border-none bg-transparent relative group"
+            title="People & Direct Contacts"
+          >
+            <div
+              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                showUserList || mobileTab === 'users'
+                  ? 'text-white translate-y-0.5 scale-110'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {/* Flaticon Solid User Contact */}
+              <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V21h19.2v-1.8c0-3.2-6.4-4.8-9.6-4.8z" />
+              </svg>
+            </div>
+          </button>
+
+          {/* Tab 3: Group Chats (Flaticon Solid Groups/Community) */}
+          <button
+            type="button"
+            onClick={() => handleMobileTabChange('groups')}
+            className="flex-1 h-full flex items-center justify-center cursor-pointer border-none bg-transparent relative group"
+            title="Group Chats"
+          >
+            <div
+              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                mobileTab === 'groups' && activeFilter === 'groups' && !showUserList
+                  ? 'text-white translate-y-0.5 scale-110'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {/* Flaticon Solid Multiple Users */}
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+              </svg>
+              {groupsCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] px-0.5 bg-rose-500 text-white rounded-full text-[8px] font-black flex items-center justify-center ring-2 ring-[var(--bg-secondary)] shadow-sm">
+                  {groupsCount}
+                </span>
+              )}
+            </div>
+          </button>
+
+          {/* Tab 4: Settings (Flaticon Solid Gear Cog) */}
+          <button
+            type="button"
+            onClick={() => handleMobileTabChange('settings')}
+            className="flex-1 h-full flex items-center justify-center cursor-pointer border-none bg-transparent relative group"
+            title="Settings & Theme"
+          >
+            <div
+              className={`relative flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                showSettings
+                  ? 'text-white translate-y-0.5 scale-110'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {/* Flaticon Solid Settings Cog */}
+              <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+              </svg>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+      {/* ── Create Group Modal ── */}
+      {showCreateGroup && (
+        <CreateGroupModal
+          users={users}
+          onClose={() => setShowCreateGroup(false)}
+          onSuccess={(convo) => {
+            setShowCreateGroup(false);
+            selectConvo(convo);
+          }}
+        />
       )}
 
       {/* ── Join Group Modal ── */}
       {showJoinGroup && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="w-[360px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-6 flex flex-col gap-4 shadow-2xl relative text-[var(--text-primary)] animate-in zoom-in-95 ease-out duration-200">
-            <button className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer" onClick={() => { setShowJoinGroup(false); setInviteCodeInput(''); }}>
-              <X size={18} />
-            </button>
-            <h3 className="text-lg font-bold">Join Group by Invite</h3>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Invite Code</label>
-              <input
-                type="text"
-                value={inviteCodeInput}
-                onChange={(e) => setInviteCodeInput(e.target.value)}
-                placeholder="e.g. A1B2C3D4"
-                className="w-full px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-primary)]"
-              />
-            </div>
-            <button
-              disabled={!inviteCodeInput.trim() || joining}
-              onClick={async () => {
-                setJoining(true);
-                const convo = await joinGroup(inviteCodeInput.trim().toUpperCase());
-                setJoining(false);
-                if (convo) {
-                  setShowJoinGroup(false);
-                  setInviteCodeInput('');
-                  selectConvo(convo);
-                }
-              }}
-              className="w-full py-2.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-semibold text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {joining ? 'Joining...' : 'Join Group'}
-            </button>
-          </div>
-        </div>
+        <JoinGroupModal
+          onClose={() => setShowJoinGroup(false)}
+          onSuccess={(convo) => {
+            setShowJoinGroup(false);
+            selectConvo(convo);
+          }}
+        />
       )}
     </div>
   );

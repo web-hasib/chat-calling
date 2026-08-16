@@ -10,13 +10,16 @@ async function bootstrap() {
 
   // CORS: allow frontend on port 3000 (and any localhost during dev)
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5000',
-      'https://ptzs5ctl-3000.asse.devtunnels.ms/',
-    ],
+    origin: '*',
+    //   origin: [
+    //   'http://localhost:3000',
+    //   'http://localhost:3001',
+    //   'https://231dpltn-3000.inc1.devtunnels.ms/',
+    //   'http://127.0.0.1:3000',
+    //   'http://127.0.0.1:5000',
+    //   'https://ptzs5ctl-3000.asse.devtunnels.ms/',
+    //   'http://localhost:3000',
+    // ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false,

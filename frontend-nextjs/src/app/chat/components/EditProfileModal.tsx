@@ -104,7 +104,7 @@ export function EditProfileModal({
             </button>
             <button
               type="submit"
-              className="flex-[2] py-2 px-4 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_12px_rgba(59,130,246,0.2)]"
+              className="flex-[2] py-2 px-4 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={profileUpdating || uploadingAvatar}
             >
               {profileUpdating ? 'Saving...' : 'Save Changes'}

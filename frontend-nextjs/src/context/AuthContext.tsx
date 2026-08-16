@@ -18,7 +18,15 @@ interface AuthContextType {
   error: string | null;
   login: (emailOrUsername: string, password?: string) => Promise<void>;
   signup: (email: string, name: string, username: string, password?: string) => Promise<void>;
-  updateProfile: (name: string, username: string, avatarUrl: string) => Promise<void>;
+  updateProfile: (data: {
+    name?: string;
+    username?: string;
+    avatarUrl?: string;
+    pushNotificationsEnabled?: boolean;
+    soundEffectsEnabled?: boolean;
+    messageTone?: string;
+    callTone?: string;
+  }) => Promise<void>;
   logout: () => void;
   setOAuthToken: (token: string) => Promise<void>;
   clearError: () => void;
@@ -103,7 +111,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateProfile = async (name: string, username: string, avatarUrl: string) => {
+  const updateProfile = async (data: {
+    name?: string;
+    username?: string;
+    avatarUrl?: string;
+    pushNotificationsEnabled?: boolean;
+    soundEffectsEnabled?: boolean;
+    messageTone?: string;
+    callTone?: string;
+  }) => {
     setError(null);
     try {
       const res = await fetch(`${API_URL}/auth/profile`, {
@@ -112,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ name, username, avatarUrl }),
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
@@ -120,9 +136,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(body.message || `Request failed with status ${res.status}`);
       }
 
-      const data = await res.json();
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setUser(data.user);
+      const responseData = await res.json();
+      localStorage.setItem('user', JSON.stringify(responseData.user));
+      setUser(responseData.user);
     } catch (e: any) {
       setError(e.message || 'Failed to update profile.');
       throw e;
