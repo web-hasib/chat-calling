@@ -275,6 +275,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const incomingOfferRef = useRef<any>(null);
+  const earlyCandidatesRef = useRef<any[]>([]);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
   const audioSynthRef = useRef<CallAudioSynthesizer | null>(null);
@@ -438,6 +439,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status: 'ringing',
       });
       incomingOfferRef.current = data.offer;
+      earlyCandidatesRef.current = [];
       audioSynthRef.current?.startRingtoneIncoming();
     });
 
@@ -446,6 +448,19 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           audioSynthRef.current?.stop();
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          
+          // Flush any buffered ICE candidates that arrived early
+          if (earlyCandidatesRef.current.length > 0) {
+            for (const cand of earlyCandidatesRef.current) {
+              try {
+                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (err) {
+                console.error('Error adding buffered ICE candidate on caller', err);
+              }
+            }
+            earlyCandidatesRef.current = [];
+          }
+
           setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
           startCallTimer();
         } catch (e) {
@@ -455,30 +470,36 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     socket.on('ice-candidate', async (data: { candidate: any }) => {
-      if (peerConnectionRef.current) {
+      if (!data?.candidate) return;
+      if (peerConnectionRef.current && peerConnectionRef.current.remoteDescription) {
         try {
           await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
         } catch (e) {
           console.error('Error adding ICE candidate', e);
         }
+      } else {
+        earlyCandidatesRef.current.push(data.candidate);
       }
     });
 
     socket.on('call-rejected', (data?: { reason?: string }) => {
+      audioSynthRef.current?.stop();
       if (data?.reason === 'busy') {
         setActiveCall(prev => prev ? { ...prev, status: 'busy' } : null);
       } else {
         setActiveCall(prev => prev ? { ...prev, status: 'declined' } : null);
       }
-      setTimeout(cleanupCall, 2000);
+      setTimeout(cleanupCall, 1500);
     });
 
     socket.on('call-ended', () => {
+      audioSynthRef.current?.stop();
       setActiveCall(prev => prev ? { ...prev, status: 'ended' } : null);
-      setTimeout(cleanupCall, 2000);
+      setTimeout(cleanupCall, 1500);
     });
 
     socket.on('call-failed', (err: { reason: string }) => {
+      audioSynthRef.current?.stop();
       alert(`Call failed: ${err.reason}`);
       cleanupCall();
     });
@@ -636,6 +657,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingOfferRef.current));
       
+      // Flush any buffered ICE candidates that arrived before answering
+      if (earlyCandidatesRef.current.length > 0) {
+        for (const cand of earlyCandidatesRef.current) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(cand));
+          } catch (err) {
+            console.error('Error adding buffered ICE candidate on receiver', err);
+          }
+        }
+        earlyCandidatesRef.current = [];
+      }
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -647,6 +680,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
       startCallTimer();
     } catch (e) {
+      console.error('Error accepting call:', e);
       cleanupCall();
     }
   };
@@ -750,6 +784,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setRemoteStream(null);
     incomingOfferRef.current = null;
+    earlyCandidatesRef.current = [];
     setActiveCall(null);
     setIsMuted(false);
     setIsVideoMuted(false);
