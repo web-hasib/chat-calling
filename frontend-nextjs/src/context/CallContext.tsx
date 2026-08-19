@@ -115,12 +115,22 @@ const CallContext = createContext<CallContextType | undefined>(undefined);
 
 const iceConfig: RTCConfiguration = {
   iceServers: [
+    // Free global STUN servers
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
-    { urls: 'stun:stun.nextcloud.com:443' },
-    { urls: 'stun:stun.matrix.org:3478' },
+
+    // Free Global TURN Relay Servers (Essential for Mobile 4G/5G <-> Broadband WiFi Symmetric NAT traversal)
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
   iceCandidatePoolSize: 10,
 };
@@ -536,8 +546,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             width: { ideal: 640, max: 854 },
             height: { ideal: 360, max: 480 },
             frameRate: { ideal: 15, max: 20 },
+            facingMode: 'user',
           }
-        : type === 'VIDEO';
+        : {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            facingMode: 'user',
+          };
 
       const audioConstraints = {
         echoCancellation: true,
