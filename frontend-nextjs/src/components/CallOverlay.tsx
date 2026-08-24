@@ -23,29 +23,52 @@ interface FloatingEmoji {
   rotate: number;
 }
 
-const getDiscordAdaptiveBg = (userId: string) => {
-  const colors = [
-    '#3c2f2f', // Dark reddish brown
-    '#2f3c37', // Dark sage green
-    '#372f3c', // Dark dusty purple
-    '#2f363c', // Dark slate blue
-    '#3c372f', // Dark olive/bronze
-    '#403030', // Dark warm brown
-    '#304038', // Dark teal-green
-    '#3a3d52', // Dark indigo-grey
+export const getDiscordAdaptiveBg = (id: string, isMesh: boolean = true) => {
+  const themes = [
+    // 1. Royal Indigo / Violet
+    { primary: '#6366f1', secondary: '#8b5cf6', dark: '#0e1027', solid: '#282b4a' },
+    // 2. Deep Emerald / Teal
+    { primary: '#10b981', secondary: '#06b6d4', dark: '#071c17', solid: '#1b3b33' },
+    // 3. Electric Crimson / Rose
+    { primary: '#f43f5e', secondary: '#ec4899', dark: '#240a15', solid: '#4a1e2f' },
+    // 4. Sapphire Blue / Cyan
+    { primary: '#3b82f6', secondary: '#0ea5e9', dark: '#0b162c', solid: '#1c2e4f' },
+    // 5. Sunset Amber / Coral
+    { primary: '#f59e0b', secondary: '#f97316', dark: '#261406', solid: '#4f301b' },
+    // 6. Cyber Purple / Fuchsia
+    { primary: '#a855f7', secondary: '#d946ef', dark: '#1f0b2f', solid: '#422057' },
+    // 7. Dark Forest / Jade
+    { primary: '#22c55e', secondary: '#14b8a6', dark: '#092113', solid: '#1c3d28' },
+    // 8. Ruby Wine / Burgundy
+    { primary: '#e11d48', secondary: '#9f1239', dark: '#240810', solid: '#4d1c29' },
+    // 9. Neon Azure / Blue
+    { primary: '#06b6d4', secondary: '#3b82f6', dark: '#061a29', solid: '#18384d' },
+    // 10. Warm Bronze / Chocolate
+    { primary: '#d97706', secondary: '#92400e', dark: '#241407', solid: '#452c1a' },
+    // 11. Midnight Lavender / Plum
+    { primary: '#8b5cf6', secondary: '#6d28d9', dark: '#190e2b', solid: '#392659' },
+    // 12. Steel Slate / Cobalt
+    { primary: '#64748b', secondary: '#475569', dark: '#111827', solid: '#2b3547' },
   ];
+
   let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  const str = id || 'default';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
+  const theme = themes[Math.abs(hash) % themes.length];
+
+  if (!isMesh) {
+    return theme.solid;
+  }
+
+  return `radial-gradient(circle at 50% 30%, ${theme.primary}55 0%, ${theme.secondary}25 45%, ${theme.dark} 95%), ${theme.dark}`;
 };
 
 const EMOJI_PRESETS = ['❤️', '👍', '🔥', '😂', '👏', '🎉', '😮', '😢', '💯', '🚀'] as const;
 
 const RemoteVideoElement: React.FC<{
-  stream: MediaStream;
+  stream?: MediaStream | null;
   className?: string;
   onRef?: (el: HTMLVideoElement | null) => void;
 }> = React.memo(({ stream, className, onRef }) => {
@@ -53,12 +76,14 @@ const RemoteVideoElement: React.FC<{
 
   useEffect(() => {
     if (videoRef.current) {
-      if (videoRef.current.srcObject !== stream) {
+      if (stream && videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
       }
       onRef?.(videoRef.current);
     }
   }, [stream, onRef]);
+
+  if (!stream) return null;
 
   return (
     <video
@@ -75,7 +100,7 @@ const GroupThumbnailTileWrapper: React.FC<{
   userId: string;
   name: string;
   avatarUrl?: string;
-  stream: MediaStream;
+  stream?: MediaStream | null;
   hasVideo: boolean;
   isUserMuted: boolean;
   isSharingScreen?: boolean;
@@ -96,7 +121,7 @@ const GroupThumbnailTileWrapper: React.FC<{
   onClick,
   onVideoRef,
 }) => {
-  const isSpeaking = useAudioActivity(stream, isUserMuted);
+  const isSpeaking = useAudioActivity(stream || null, isUserMuted);
 
   return (
     <div 
@@ -104,7 +129,7 @@ const GroupThumbnailTileWrapper: React.FC<{
       onClick={onClick}
       title={`Focus ${name}`}
     >
-      {hasVideo ? (
+      {hasVideo && stream ? (
         <RemoteVideoElement
           stream={stream}
           className={styles.thumbnailVideoEl}
@@ -123,7 +148,7 @@ const GroupThumbnailTileWrapper: React.FC<{
         {isSpeaking && <span className={styles.speakingWaveDot} />}
         {isSharingScreen && '💻 '}{name} {isHandRaised && '🖐️'} {isFootRaised && '🦶'} {isUserMuted && '🔇'}
       </div>
-      <RemoteAudioElement stream={stream} />
+      {stream && <RemoteAudioElement stream={stream} />}
     </div>
   );
 });
@@ -133,7 +158,7 @@ const GroupRemoteTileWrapper: React.FC<{
   userId: string;
   name: string;
   avatarUrl?: string;
-  stream: MediaStream;
+  stream?: MediaStream | null;
   hasVideo: boolean;
   isUserMuted: boolean;
   isUserScreenSharing?: boolean;
@@ -154,7 +179,7 @@ const GroupRemoteTileWrapper: React.FC<{
   onClick,
   onVideoRef,
 }) => {
-  const isSpeaking = useAudioActivity(stream, isUserMuted);
+  const isSpeaking = useAudioActivity(stream || null, isUserMuted);
 
   return (
     <div 
@@ -163,7 +188,7 @@ const GroupRemoteTileWrapper: React.FC<{
       title={`Click to focus ${name}`}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
-      {hasVideo ? (
+      {hasVideo && stream ? (
         <RemoteVideoElement
           stream={stream}
           className={styles.groupVideoEl}
@@ -182,28 +207,31 @@ const GroupRemoteTileWrapper: React.FC<{
         {isSpeaking && <span className={styles.speakingWaveDot} />}
         {isUserScreenSharing && '💻 '}{name} {isUserScreenSharing && '(Sharing Screen)'} {isHandRaised && '🖐️'} {isFootRaised && '🦶'} {isUserMuted && '🔇'}
       </div>
-      <RemoteAudioElement stream={stream} />
+      {stream && <RemoteAudioElement stream={stream} />}
     </div>
   );
 });
 GroupRemoteTileWrapper.displayName = 'GroupRemoteTileWrapper';
 
 const RemoteAudioElement: React.FC<{
-  stream: MediaStream;
+  stream?: MediaStream | null;
 }> = React.memo(({ stream }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (audioRef.current && audioRef.current.srcObject !== stream) {
+    if (audioRef.current && stream && audioRef.current.srcObject !== stream) {
       audioRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  if (!stream) return null;
 
   return (
     <audio
       ref={audioRef}
       autoPlay
       playsInline
+      muted
       style={{ display: 'none' }}
     />
   );
@@ -221,6 +249,8 @@ const CallOverlay: React.FC = () => {
     isMuted,
     isVideoMuted,
     isScreenSharing,
+    isPeerVideoMuted,
+    isPeerScreenSharing,
     acceptCall,
     rejectCall,
     endCall,
@@ -358,13 +388,18 @@ const CallOverlay: React.FC = () => {
     lastMessageCountRef.current = groupCallMessages.length;
   }, [groupCallMessages, showChatPanel, user]);
 
-  // ─── Group Call PIP Dragging State ───
+  // ─── Group Call PIP Dragging & Edge Docking State ───
   const [groupPipPosition, setGroupPipPosition] = useState({ x: 0, y: 0 });
+  const [groupPipDocked, setGroupPipDocked] = useState<'left' | 'right' | null>(null);
   const isGroupDraggingRef = useRef(false);
   const groupDragStartRef = useRef({ x: 0, y: 0 });
+  const didDragMovedRef = useRef(false);
+  const startClientPosRef = useRef({ x: 0, y: 0 });
 
   const handleGroupPointerDown = (e: React.PointerEvent) => {
     isGroupDraggingRef.current = true;
+    didDragMovedRef.current = false;
+    startClientPosRef.current = { x: e.clientX, y: e.clientY };
     groupDragStartRef.current = {
       x: e.clientX - groupPipPosition.x,
       y: e.clientY - groupPipPosition.y,
@@ -374,27 +409,82 @@ const CallOverlay: React.FC = () => {
 
   const handleGroupPointerMove = (e: React.PointerEvent) => {
     if (!isGroupDraggingRef.current) return;
+    const movedDist = Math.hypot(e.clientX - startClientPosRef.current.x, e.clientY - startClientPosRef.current.y);
+    if (movedDist > 6) {
+      didDragMovedRef.current = true;
+    }
+
     let newX = e.clientX - groupDragStartRef.current.x;
     let newY = e.clientY - groupDragStartRef.current.y;
 
+    const pipWidth = 110;
     const padding = 16;
-    const pipWidth = 100;
-    const pipHeight = 140;
 
-    const minX = -window.innerWidth + pipWidth + padding;
-    const maxX = padding;
-    const minY = -window.innerHeight + pipHeight + padding;
+    // Left limit (relative to default right: 20px)
+    const minX = -(window.innerWidth - pipWidth - padding);
+    // Right limit (can be dragged off-screen to the right by up to pipWidth + 20)
+    const maxX = pipWidth + 20;
+
+    const minY = -window.innerHeight + 150 + padding;
     const maxY = padding;
 
-    newX = Math.max(minX, Math.min(newX, maxX));
+    newX = Math.max(minX - 30, Math.min(newX, maxX + 30));
     newY = Math.max(minY, Math.min(newY, maxY));
 
     setGroupPipPosition({ x: newX, y: newY });
   };
 
   const handleGroupPointerUp = (e: React.PointerEvent) => {
+    if (!isGroupDraggingRef.current) return;
     isGroupDraggingRef.current = false;
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+
+    const pipWidth = 110;
+    const padding = 16;
+    const minX = -(window.innerWidth - pipWidth - padding);
+
+    // If it was just a tap/click without dragging, and it is currently docked, UNDOCK it!
+    if (!didDragMovedRef.current) {
+      if (groupPipDocked) {
+        if (groupPipDocked === 'left') {
+          setGroupPipPosition(prev => ({ ...prev, x: minX + 20 }));
+        } else {
+          setGroupPipPosition(prev => ({ ...prev, x: 0 }));
+        }
+        setGroupPipDocked(null);
+      }
+      return;
+    }
+
+    // It was a drag: check if dragged to left or right screen edge
+    if (groupPipPosition.x <= minX + 60) {
+      // Dock to left edge (leaves 22px tab visible)
+      setGroupPipDocked('left');
+      setGroupPipPosition(prev => ({ ...prev, x: minX - pipWidth + 22 }));
+    } else if (groupPipPosition.x >= 20) {
+      // Dock to right edge (leaves 22px tab visible, exactly matching left)
+      setGroupPipDocked('right');
+      setGroupPipPosition(prev => ({ ...prev, x: pipWidth + 20 - 22 }));
+    } else {
+      setGroupPipDocked(null);
+    }
+  };
+
+  const handleGroupPipClick = (e: React.MouseEvent) => {
+    if (groupPipDocked) {
+      e.stopPropagation();
+      const pipWidth = 110;
+      const padding = 16;
+      const minX = -(window.innerWidth - pipWidth - padding);
+      if (groupPipDocked === 'left') {
+        setGroupPipPosition(prev => ({ ...prev, x: minX + 20 }));
+      } else {
+        setGroupPipPosition(prev => ({ ...prev, x: 0 }));
+      }
+      setGroupPipDocked(null);
+    }
   };
 
   // ─── Group stream binding ───
@@ -500,53 +590,65 @@ const CallOverlay: React.FC = () => {
     // Ringing / Ended state
     if (isRinging || isEnded) {
       return (
-        <div className={styles.overlay}>
+        <div 
+          className={styles.overlay}
+          style={{
+            background: getDiscordAdaptiveBg(activeGroupCall.conversationId || activeGroupCall.groupName || 'group'),
+          }}
+        >
           <div className={styles.panel}>
-            <div className={styles.groupBadge}>
-              <Users size={16} />
-              <span>Group Call</span>
-            </div>
-
-            <div className={styles.groupAvatarRow}>
-              {activeGroupCall.participants.slice(0, 3).map((p) => (
-                <img
-                  key={p.userId}
-                  src={p.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${p.name}`}
-                  alt={p.name}
-                  className={isRinging ? styles.ringingAvatar : styles.avatar}
-                  style={{ width: 80, height: 80 }}
-                />
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <h2 className={styles.name}>{activeGroupCall.groupName}</h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-                {isVideoCall ? (
-                  <VideoOn size={16} style={{ color: 'var(--accent-primary, #3b82f6)' }} />
-                ) : (
-                  <Phone size={14} style={{ color: 'var(--accent-success, #22c55e)' }} />
-                )}
-                <span
-                  className={styles.status}
-                  style={{
-                    margin: 0,
-                    fontSize: '13px',
-                    color: isEnded ? '#ef4444' : undefined,
-                  }}
-                >
-                  {isEnded
-                    ? 'Group call ended'
-                    : `Incoming ${isVideoCall ? 'Video' : 'Audio'} Group Call...`}
-                </span>
+            {/* Top Badge */}
+            <div className={styles.callingTopSection}>
+              <div className={styles.groupBadge} style={{ padding: '6px 18px', fontSize: '13px' }}>
+                <Users size={16} />
+                <span>Group Call</span>
               </div>
-              {isRinging && activeGroupCall.participants.length > 0 && (
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  from {activeGroupCall.participants[0].name}
-                </span>
-              )}
             </div>
 
+            {/* Center Hero Presentation */}
+            <div className={styles.callingCenterHero}>
+              <div className={styles.groupAvatarRow}>
+                {activeGroupCall.participants.slice(0, 3).map((p) => (
+                  <img
+                    key={p.userId}
+                    src={p.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.name)}`}
+                    alt={p.name}
+                    className={isRinging ? styles.ringingAvatar : styles.avatar}
+                    style={{ width: 110, height: 110 }}
+                  />
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <h2 className={styles.name}>{activeGroupCall.groupName}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                  {isVideoCall ? (
+                    <VideoOn size={18} style={{ color: 'var(--accent-primary, #3b82f6)' }} />
+                  ) : (
+                    <Phone size={16} style={{ color: 'var(--accent-success, #22c55e)' }} />
+                  )}
+                  <span
+                    className={styles.status}
+                    style={{
+                      margin: 0,
+                      fontSize: '15px',
+                      color: isEnded ? '#ef4444' : 'rgba(255,255,255,0.85)',
+                    }}
+                  >
+                    {isEnded
+                      ? 'Group call ended'
+                      : `Incoming ${isVideoCall ? 'Video' : 'Audio'} Group Call...`}
+                  </span>
+                </div>
+                {isRinging && activeGroupCall.participants.length > 0 && (
+                  <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)', marginTop: '4px' }}>
+                    Started by {activeGroupCall.participants[0].name}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Controls */}
             <div className={styles.controls}>
               {isEnded ? null : (
                 <>
@@ -555,14 +657,14 @@ const CallOverlay: React.FC = () => {
                     onClick={() => joinGroupCall()}
                     title="Join Group Call"
                   >
-                    <Phone size={24} />
+                    <Phone size={28} />
                   </button>
                   <button
                     className={`${styles.btn} ${styles.btnDecline}`}
                     onClick={rejectGroupCall}
                     title="Decline"
                   >
-                    <PhoneOff size={24} />
+                    <PhoneOff size={28} />
                   </button>
                 </>
               )}
@@ -575,14 +677,35 @@ const CallOverlay: React.FC = () => {
     // Connecting state
     if (isConnecting) {
       return (
-        <div className={styles.overlay}>
+        <div 
+          className={styles.overlay}
+          style={{
+            background: getDiscordAdaptiveBg(activeGroupCall.conversationId || activeGroupCall.groupName || 'group'),
+          }}
+        >
           <div className={styles.panel}>
-            <div className={styles.groupBadge}>
-              <Users size={16} />
-              <span>Group Call</span>
+            <div className={styles.callingTopSection}>
+              <div className={styles.groupBadge} style={{ padding: '6px 18px', fontSize: '13px' }}>
+                <Users size={16} />
+                <span>Group Call</span>
+              </div>
             </div>
-            <h2 className={styles.name}>{activeGroupCall.groupName}</h2>
-            <span className={styles.status}>Connecting...</span>
+            <div className={styles.callingCenterHero}>
+              <div className={styles.groupAvatarRow}>
+                {activeGroupCall.participants.slice(0, 3).map((p) => (
+                  <img
+                    key={p.userId}
+                    src={p.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.name)}`}
+                    alt={p.name}
+                    className={styles.ringingAvatar}
+                    style={{ width: 110, height: 110 }}
+                  />
+                ))}
+              </div>
+              <h2 className={styles.name}>{activeGroupCall.groupName}</h2>
+              <span className={styles.status}>Connecting...</span>
+            </div>
+            <div className={styles.controls} />
           </div>
         </div>
       );
@@ -590,8 +713,28 @@ const CallOverlay: React.FC = () => {
 
     // Connected state — VIDEO/AUDIO layout
     if (isConnected) {
-      const remoteEntries = Array.from(groupRemoteStreams.entries());
-      const totalParticipants = remoteEntries.length + 1;
+      const allParticipants = activeGroupCall?.participants || [];
+      const remoteParticipants = allParticipants.filter(p => p.userId !== user?.id);
+
+      // Build effective remote list using actual participants data
+      const effectiveRemoteList = remoteParticipants.length > 0
+        ? remoteParticipants.map(p => ({
+            userId: p.userId,
+            name: p.name,
+            avatarUrl: p.avatarUrl,
+            stream: groupRemoteStreams.get(p.userId) || null,
+          }))
+        : Array.from(groupRemoteStreams.entries()).map(([uid, stream]) => {
+            const p = allParticipants.find(part => part.userId === uid);
+            return {
+              userId: uid,
+              name: p?.name || 'Participant',
+              avatarUrl: p?.avatarUrl,
+              stream,
+            };
+          });
+
+      const totalParticipants = Math.max(allParticipants.length, effectiveRemoteList.length + 1);
       
       // On mobile, the local preview floats, so grid only displays remote participants.
       const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
@@ -604,7 +747,7 @@ const CallOverlay: React.FC = () => {
         ? styles.groupGrid2
         : styles.groupGrid4;
 
-      const isControlsHidden = !controlsVisible && !showEmojiTray && !showChatPanel && !showAllParticipantsPanel && !raiseConfirmModal && !muteConfirmConfig.isOpen;
+      const isControlsHidden = (isMobile && showChatPanel) || (!controlsVisible && !showEmojiTray && !showChatPanel && !showAllParticipantsPanel && !raiseConfirmModal && !muteConfirmConfig.isOpen);
 
       return (
         <div 
@@ -639,15 +782,15 @@ const CallOverlay: React.FC = () => {
 
               {isVideoCall ? (
                 (() => {
-                  const screenSharingRemoteEntries = remoteEntries.filter(([uid]) => groupCallScreenSharingStates[uid]);
+                  const screenSharingRemoteEntries = effectiveRemoteList.filter((item) => groupCallScreenSharingStates[item.userId]);
                   const latestRemoteScreenSharingUserId = screenSharingRemoteEntries.length > 0 
-                    ? screenSharingRemoteEntries[screenSharingRemoteEntries.length - 1][0] 
+                    ? screenSharingRemoteEntries[screenSharingRemoteEntries.length - 1].userId 
                     : null;
                   const defaultScreenSharingUserId = isGroupScreenSharing ? (user?.id || 'me') : latestRemoteScreenSharingUserId;
-                  const effectiveFocusedUserId = focusedUserId || defaultScreenSharingUserId || (totalParticipants === 2 && remoteEntries.length > 0 ? remoteEntries[0][0] : null);
+                  const effectiveFocusedUserId = focusedUserId || defaultScreenSharingUserId || (totalParticipants === 2 && effectiveRemoteList.length > 0 ? effectiveRemoteList[0].userId : null);
 
                   if (effectiveFocusedUserId) {
-                    const otherRemoteParticipants = remoteEntries.filter(([uid]) => uid !== effectiveFocusedUserId);
+                    const otherRemoteParticipants = effectiveRemoteList.filter((item) => item.userId !== effectiveFocusedUserId);
 
                     return (
                       <div className={styles.focusedSpeakerLayout}>
@@ -664,8 +807,7 @@ const CallOverlay: React.FC = () => {
 
                               return (
                                 <>
-                                  {toRender.map(([userId, stream]) => {
-                                    const participant = activeGroupCall.participants.find(p => p.userId === userId);
+                                  {toRender.map(({ userId, name, avatarUrl, stream }) => {
                                     const hasVideo = groupCallVideoStates[userId] !== false;
                                     const isSharingScreen = groupCallScreenSharingStates[userId];
                                     const isUserMuted = groupMutedUserIds.has(userId);
@@ -674,8 +816,8 @@ const CallOverlay: React.FC = () => {
                                       <GroupThumbnailTileWrapper
                                         key={userId}
                                         userId={userId}
-                                        name={participant?.name || 'Participant'}
-                                        avatarUrl={participant?.avatarUrl}
+                                        name={name || 'Participant'}
+                                        avatarUrl={avatarUrl}
                                         stream={stream}
                                         hasVideo={hasVideo}
                                         isUserMuted={isUserMuted}
@@ -691,8 +833,8 @@ const CallOverlay: React.FC = () => {
                                   })}
 
                                   {/* Background audio tracks to keep overflow participants audible */}
-                                  {hasOverflow && otherRemoteParticipants.slice(maxThumbnails - 1).map(([userId, stream]) => (
-                                    <RemoteAudioElement key={`audio-bg-thumb-${userId}`} stream={stream} />
+                                  {hasOverflow && otherRemoteParticipants.slice(maxThumbnails - 1).map(({ userId, stream }) => (
+                                    stream ? <RemoteAudioElement key={`audio-bg-thumb-${userId}`} stream={stream} /> : null
                                   ))}
 
                                   {/* + others Overflow tile */}
@@ -730,7 +872,7 @@ const CallOverlay: React.FC = () => {
                                     <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(user?.id || 'me') }}>
                                       <img
                                         src={user?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user?.name || user?.id || 'me'}`}
-                                        alt={user?.name || 'You'}
+                                        alt="You"
                                         className={styles.groupPlaceholderAvatar}
                                         style={{ width: 120, height: 120 }}
                                       />
@@ -743,16 +885,15 @@ const CallOverlay: React.FC = () => {
                               );
                             }
 
-                            const focusedEntry = remoteEntries.find(([uid]) => uid === effectiveFocusedUserId);
+                            const focusedEntry = effectiveRemoteList.find((item) => item.userId === effectiveFocusedUserId);
                             if (!focusedEntry) return null;
-                            const [uid, stream] = focusedEntry;
-                            const participant = activeGroupCall.participants.find(p => p.userId === uid);
-                            const hasVideo = groupCallVideoStates[uid] !== false;
+                            const { userId: uid, name, avatarUrl, stream } = focusedEntry;
+                            const hasVideo = groupCallVideoStates[uid] !== false && !!stream?.getVideoTracks().length;
                             const isUserScreenSharing = groupCallScreenSharingStates[uid];
 
                             return (
                               <div key={uid} className={styles.focusedVideoTile} onClick={() => setFocusedUserId(null)} title="Click to unpin">
-                                {hasVideo ? (
+                                {hasVideo && stream ? (
                                   <RemoteVideoElement
                                     stream={stream}
                                     className={styles.focusedVideoEl}
@@ -763,17 +904,17 @@ const CallOverlay: React.FC = () => {
                                 ) : (
                                   <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(uid) }}>
                                     <img
-                                      src={participant?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant?.name || uid}`}
-                                      alt={participant?.name || 'Participant'}
+                                      src={avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${name || uid}`}
+                                      alt={name || 'Participant'}
                                       className={styles.groupPlaceholderAvatar}
                                       style={{ width: 120, height: 120 }}
                                     />
                                   </div>
                                 )}
                                 <div className={styles.groupTileLabel}>
-                                  {isUserScreenSharing ? '💻' : '📌'} {participant?.name || 'Participant'} {isUserScreenSharing ? '(Sharing Screen)' : ''} {groupCallHandRaisedStates[uid] && '🖐️'} {groupCallFootRaisedStates[uid] && '🦶'} {groupMutedUserIds.has(uid) && '🔇'}
+                                  {isUserScreenSharing ? '💻' : '📌'} {name || 'Participant'} {isUserScreenSharing ? '(Sharing Screen)' : ''} {groupCallHandRaisedStates[uid] && '🖐️'} {groupCallFootRaisedStates[uid] && '🦶'} {groupMutedUserIds.has(uid) && '🔇'}
                                 </div>
-                                <RemoteAudioElement stream={stream} />
+                                {stream && <RemoteAudioElement stream={stream} />}
                               </div>
                             );
                           })()}
@@ -821,13 +962,15 @@ const CallOverlay: React.FC = () => {
                     <div className={`${styles.groupVideoGrid} ${gridClass}`}>
                       {/* Self Tile */}
                       <div
-                        className={`${styles.groupVideoTile} ${isMobile ? styles.groupFloatingPip : ''} ${isSelfSpeaking ? styles.speakingGlow : ''}`}
+                        className={`${styles.groupVideoTile} ${isMobile ? styles.groupFloatingPip : ''} ${groupPipDocked ? styles.groupPipDocked : ''} ${groupPipDocked === 'left' ? styles.groupPipDockedLeft : ''} ${groupPipDocked === 'right' ? styles.groupPipDockedRight : ''} ${isSelfSpeaking ? styles.speakingGlow : ''}`}
                         style={isMobile ? {
-                          transform: `translate(${groupPipPosition.x}px, ${groupPipPosition.y}px)`,
+                          transform: `translate3d(${groupPipPosition.x}px, ${groupPipPosition.y}px, 0)`,
                         } : undefined}
                         onPointerDown={isMobile ? handleGroupPointerDown : undefined}
                         onPointerMove={isMobile ? handleGroupPointerMove : undefined}
                         onPointerUp={isMobile ? handleGroupPointerUp : undefined}
+                        onClick={isMobile ? handleGroupPipClick : undefined}
+                        title={groupPipDocked ? 'Click to show preview' : undefined}
                       >
                         {!isGroupVideoMuted ? (
                           <video
@@ -841,7 +984,7 @@ const CallOverlay: React.FC = () => {
                           <div className={styles.groupVideoPlaceholder} style={{ backgroundColor: getDiscordAdaptiveBg(user?.id || 'me') }}>
                             <img
                               src={user?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user?.name || user?.id || 'me'}`}
-                              alt={user?.name || 'You'}
+                              alt="You"
                               className={styles.groupPlaceholderAvatar}
                             />
                           </div>
@@ -854,16 +997,15 @@ const CallOverlay: React.FC = () => {
 
                       {/* Remote Tiles (Capped at 2 if total participants > 4) */}
                       {(() => {
-                        const maxRemoteVisible = totalParticipants > 4 ? 3 : remoteEntries.length;
-                        const visibleRemote = remoteEntries.slice(0, maxRemoteVisible);
-                        const overflowRemote = remoteEntries.slice(maxRemoteVisible);
-                        const overflowCount = remoteEntries.length - maxRemoteVisible;
+                        const maxRemoteVisible = totalParticipants > 4 ? 3 : effectiveRemoteList.length;
+                        const visibleRemote = effectiveRemoteList.slice(0, maxRemoteVisible);
+                        const overflowRemote = effectiveRemoteList.slice(maxRemoteVisible);
+                        const overflowCount = effectiveRemoteList.length - maxRemoteVisible;
 
                         return (
                           <>
-                            {visibleRemote.map(([userId, stream]) => {
-                              const participant = activeGroupCall.participants.find(p => p.userId === userId);
-                              const hasVideo = groupCallVideoStates[userId] !== false;
+                            {visibleRemote.map(({ userId, name, avatarUrl, stream }) => {
+                              const hasVideo = groupCallVideoStates[userId] !== false && !!stream?.getVideoTracks().length;
                               const isUserMuted = groupMutedUserIds.has(userId);
                               const isUserScreenSharing = groupCallScreenSharingStates[userId];
 
@@ -871,8 +1013,8 @@ const CallOverlay: React.FC = () => {
                                 <GroupRemoteTileWrapper
                                   key={userId}
                                   userId={userId}
-                                  name={participant?.name || 'Participant'}
-                                  avatarUrl={participant?.avatarUrl}
+                                  name={name || 'Participant'}
+                                  avatarUrl={avatarUrl}
                                   stream={stream}
                                   hasVideo={hasVideo}
                                   isUserMuted={isUserMuted}
@@ -888,8 +1030,8 @@ const CallOverlay: React.FC = () => {
                             })}
 
                             {/* Background audio tracks to keep overflow video participants audible */}
-                            {overflowRemote.map(([userId, stream]) => (
-                              <RemoteAudioElement key={`audio-bg-vid-${userId}`} stream={stream} />
+                            {overflowRemote.map(({ userId, stream }) => (
+                              stream ? <RemoteAudioElement key={`audio-bg-vid-${userId}`} stream={stream} /> : null
                             ))}
 
                             {/* +N Overflow tile */}
@@ -1117,28 +1259,33 @@ const CallOverlay: React.FC = () => {
                   ))}
                   {/* Plus button for Custom Emoji Picker */}
                   <button
+                    type="button"
                     className={styles.trayEmojiBtn}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setShowCustomEmojiPicker(!showCustomEmojiPicker);
                     }}
                     title="Choose Custom Emoji"
-                    style={{ fontSize: '18px', fontWeight: 'bold', color: '#a5b4fc', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}
+                    style={{ fontSize: '18px', fontWeight: 'bold', color: '#a5b4fc', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}
                   >
                     +
                   </button>
+                </div>
+              )}
 
-                  {showCustomEmojiPicker && (
-                    <div className={styles.customEmojiPickerWrapper}>
-                      <EmojiPicker
-                        theme={Theme.DARK}
-                        onEmojiClick={(emojiData) => {
-                          triggerGroupCallEmoji(emojiData.emoji);
-                          setShowCustomEmojiPicker(false);
-                          setShowEmojiTray(false);
-                        }}
-                      />
-                    </div>
-                  )}
+              {/* Custom Emoji Picker placed outside the scrollable tray */}
+              {showCustomEmojiPicker && (
+                <div className={styles.customEmojiPickerWrapper}>
+                  <EmojiPicker
+                    theme={Theme.DARK}
+                    width={isMobile ? 320 : 350}
+                    height={380}
+                    onEmojiClick={(emojiData) => {
+                      triggerGroupCallEmoji(emojiData.emoji);
+                      setShowCustomEmojiPicker(false);
+                      setShowEmojiTray(false);
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -1214,17 +1361,10 @@ const CallOverlay: React.FC = () => {
             groupCallHandRaisedStates={groupCallHandRaisedStates}
             groupCallFootRaisedStates={groupCallFootRaisedStates}
             onFocusUser={(uid) => setFocusedUserId(uid)}
-            onAdminMuteUser={(uid) => {
-              const p = activeGroupCall.participants.find(part => part.userId === uid);
-              setMuteConfirmConfig({
-                isOpen: true,
-                type: 'user',
-                targetUserId: uid,
-                targetUserName: p?.name || 'User',
-              });
-            }}
+            onAdminMuteUser={(uid) => adminMuteUser(uid)}
             onAdminUnmuteUser={(uid) => adminUnmuteUser(uid)}
             onAdminMuteAll={() => setMuteConfirmConfig({ isOpen: true, type: 'all' })}
+            onToggleMyMute={toggleGroupMute}
           />
 
           {/* Admin Mute Confirmation Modal */}
@@ -1291,6 +1431,8 @@ const CallOverlay: React.FC = () => {
       isMuted={isMuted}
       isVideoMuted={isVideoMuted}
       isScreenSharing={isScreenSharing}
+      isPeerVideoMuted={isPeerVideoMuted}
+      isPeerScreenSharing={isPeerScreenSharing}
       formatTime={formatTime}
       onAccept={acceptCall}
       onReject={rejectCall}

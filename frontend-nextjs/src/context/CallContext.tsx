@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
+import { triggerPhoneVibration, stopPhoneVibration } from '../utils/notifications';
+import { AgoraCallManager } from '../utils/agoraManager';
 
 // ─── 1:1 Call Types (unchanged) ───
 
@@ -13,7 +15,8 @@ interface ActiveCall {
   peerName?: string;
   peerAvatar?: string;
   conversationId: string;
-  status: 'idle' | 'ringing' | 'connecting' | 'connected' | 'busy' | 'declined' | 'ended';
+  status: 'idle' | 'ringing' | 'connecting' | 'connected' | 'busy' | 'declined' | 'ended' | 'offline' | 'failed';
+  failureReason?: string;
 }
 
 // ─── Group Call Types ───
@@ -43,6 +46,7 @@ interface GroupCallStatus {
 }
 
 interface GroupChatMessage {
+  id?: string;
   senderId: string;
   senderName: string;
   message: string;
@@ -66,6 +70,8 @@ interface CallContextType {
   isMuted: boolean;
   isVideoMuted: boolean;
   isScreenSharing: boolean;
+  isPeerVideoMuted: boolean;
+  isPeerScreenSharing: boolean;
   startCall: (targetUserId: string, targetName: string, targetAvatar: string, type: 'AUDIO' | 'VIDEO', conversationId: string) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => void;
@@ -198,11 +204,17 @@ class CallAudioSynthesizer {
     if (!AudioContextClass) return;
     this.audioCtx = new AudioContextClass();
 
+    // Trigger mobile vibration
+    triggerPhoneVibration([1000, 500, 1000, 500]);
+
     const playRingtoneCycle = () => {
       if (!this.audioCtx) return;
       if (this.audioCtx.state === 'suspended') {
         this.audioCtx.resume();
       }
+
+      // Re-trigger vibration for each ring cycle
+      triggerPhoneVibration([1000, 500, 1000, 500]);
 
       const now = this.audioCtx.currentTime;
       const gain = this.audioCtx.createGain();
@@ -243,6 +255,7 @@ class CallAudioSynthesizer {
   }
 
   stop() {
+    stopPhoneVibration();
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -285,6 +298,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
+  const [isPeerVideoMuted, setIsPeerVideoMuted] = useState<boolean>(false);
+  const [isPeerScreenSharing, setIsPeerScreenSharing] = useState<boolean>(false);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const incomingOfferRef = useRef<any>(null);
@@ -387,6 +402,43 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Initialize Agora RTC Manager for Group Calling
+  const agoraManagerRef = useRef<AgoraCallManager | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const manager = new AgoraCallManager();
+    manager.setCallbacks({
+      onRemoteStreamUpdate: (peerId: string, stream: MediaStream | null) => {
+        setGroupRemoteStreams(prev => {
+          const next = new Map(prev);
+          if (stream) {
+            next.set(peerId, stream);
+          } else {
+            next.delete(peerId);
+          }
+          return next;
+        });
+      },
+      onUserJoined: (peerId: string) => {
+        console.log('[Agora] Remote user joined:', peerId);
+      },
+      onUserLeft: (peerId: string) => {
+        console.log('[Agora] Remote user left:', peerId);
+        setGroupRemoteStreams(prev => {
+          const next = new Map(prev);
+          next.delete(peerId);
+          return next;
+        });
+      },
+    });
+    agoraManagerRef.current = manager;
+
+    return () => {
+      manager.leaveChannel();
+    };
+  }, []);
+
   // Monitor dynamic call status for the current active conversation
   useEffect(() => {
     if (!socket || !currentConvoId) {
@@ -464,7 +516,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       audioSynthRef.current?.startRingtoneIncoming();
     });
 
-    socket.on('call-accepted', async (data: { answer: any }) => {
+    socket.on('call-accepted', async (data: { answer: any; receiverName?: string; receiverAvatar?: string }) => {
       if (peerConnectionRef.current) {
         try {
           audioSynthRef.current?.stop();
@@ -482,7 +534,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             earlyCandidatesRef.current = [];
           }
 
-          setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+          setActiveCall(prev => prev ? { 
+            ...prev, 
+            status: 'connected',
+            peerName: data.receiverName || prev.peerName,
+            peerAvatar: data.receiverAvatar || prev.peerAvatar,
+          } : null);
           startCallTimer();
         } catch (e) {
           console.error('Error setting remote description', e);
@@ -500,6 +557,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         earlyCandidatesRef.current.push(data.candidate);
+      }
+    });
+
+    socket.on('call-media-state', (data: { videoEnabled?: boolean; audioEnabled?: boolean; isScreenSharing?: boolean }) => {
+      if (typeof data.videoEnabled === 'boolean') {
+        setIsPeerVideoMuted(!data.videoEnabled);
+      }
+      if (typeof data.isScreenSharing === 'boolean') {
+        setIsPeerScreenSharing(data.isScreenSharing);
       }
     });
 
@@ -521,14 +587,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     socket.on('call-failed', (err: { reason: string }) => {
       audioSynthRef.current?.stop();
-      alert(`Call failed: ${err.reason}`);
-      cleanupCall();
+      const isOffline = err.reason?.toLowerCase().includes('offline');
+      setActiveCall(prev => prev ? { 
+        ...prev, 
+        status: isOffline ? 'offline' : 'failed', 
+        failureReason: err.reason || 'User offline' 
+      } : null);
+      setTimeout(cleanupCall, 2500);
     });
 
     return () => {
       socket.off('incoming-call');
       socket.off('call-accepted');
       socket.off('ice-candidate');
+      socket.off('call-media-state');
       socket.off('call-rejected');
       socket.off('call-ended');
       socket.off('call-failed');
@@ -701,6 +773,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.emit('accept-call', {
         to: activeCall.peerId,
         answer,
+        receiverName: user?.name,
+        receiverAvatar: user?.avatarUrl,
       });
 
       setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
@@ -737,7 +811,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const audioTrack = localStream.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
-      setIsMuted(!audioTrack.enabled);
+      const nextMuted = !audioTrack.enabled;
+      setIsMuted(nextMuted);
+      if (socket && activeCallRef.current) {
+        socket.emit('call-media-state', {
+          to: activeCallRef.current.peerId,
+          videoEnabled: !isVideoMuted,
+          audioEnabled: !nextMuted,
+          isScreenSharing,
+        });
+      }
     }
   };
 
@@ -746,22 +829,34 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const videoTrack = localStream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
-      setIsVideoMuted(!videoTrack.enabled);
+      const nextVideoMuted = !videoTrack.enabled;
+      setIsVideoMuted(nextVideoMuted);
+      if (socket && activeCallRef.current) {
+        socket.emit('call-media-state', {
+          to: activeCallRef.current.peerId,
+          videoEnabled: !nextVideoMuted,
+          audioEnabled: !isMuted,
+          isScreenSharing,
+        });
+      }
     }
   };
 
   const toggleScreenShare = async () => {
-    if (!peerConnectionRef.current || !localStream) return;
+    if (!peerConnectionRef.current) return;
 
     if (!isScreenSharing) {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         const screenTrack = screenStream.getVideoTracks()[0];
+        if (!screenTrack) return;
         screenTrackRef.current = screenTrack;
 
         const videoSender = peerConnectionRef.current.getSenders().find(s => s.track?.kind === 'video');
         if (videoSender) {
           await videoSender.replaceTrack(screenTrack);
+        } else {
+          peerConnectionRef.current.addTrack(screenTrack, localStream || new MediaStream());
         }
 
         screenTrack.onended = () => {
@@ -769,6 +864,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         setIsScreenSharing(true);
+        if (socket && activeCallRef.current) {
+          socket.emit('call-media-state', {
+            to: activeCallRef.current.peerId,
+            videoEnabled: true,
+            audioEnabled: !isMuted,
+            isScreenSharing: true,
+          });
+        }
       } catch (err) {
         console.error('Error starting screen share', err);
       }
@@ -791,11 +894,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     setIsScreenSharing(false);
+    if (socket && activeCallRef.current) {
+      socket.emit('call-media-state', {
+        to: activeCallRef.current.peerId,
+        videoEnabled: !isVideoMuted,
+        audioEnabled: !isMuted,
+        isScreenSharing: false,
+      });
+    }
   };
 
   const cleanupCall = () => {
     audioSynthRef.current?.stop();
     stopCallTimer();
+    setIsPeerVideoMuted(false);
+    setIsPeerScreenSharing(false);
     if (screenTrackRef.current) {
       screenTrackRef.current.stop();
       screenTrackRef.current = null;
@@ -915,6 +1028,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const cleanupGroupCall = useCallback(() => {
     audioSynthRef.current?.stop();
     setGroupCallStartedAt(null);
+
+    // Leave Agora RTC Channel
+    if (agoraManagerRef.current) {
+      agoraManagerRef.current.leaveChannel().catch(() => {});
+    }
 
     if (groupScreenTrackRef.current) {
       groupScreenTrackRef.current.stop();
@@ -1041,19 +1159,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         audioEnabled: !isGroupMuted,
       });
 
-      for (const peer of data.existingParticipants) {
-        try {
-          const pc = createGroupPeerConnection(peer.userId, stream);
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+      if (!agoraManagerRef.current) {
+        for (const peer of data.existingParticipants) {
+          try {
+            const pc = createGroupPeerConnection(peer.userId, stream);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
 
-          socket.emit('group-call-offer', {
-            to: peer.userId,
-            offer,
-            conversationId: data.conversationId,
-          });
-        } catch (e) {
-          console.error(`Failed to create offer for ${peer.userId}`, e);
+            socket.emit('group-call-offer', {
+              to: peer.userId,
+              offer,
+              conversationId: data.conversationId,
+            });
+          } catch (e) {
+            console.error(`Failed to create offer for ${peer.userId}`, e);
+          }
         }
       }
     });
@@ -1097,6 +1217,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       offer: any;
       conversationId: string;
     }) => {
+      if (agoraManagerRef.current) return;
       const stream = groupLocalStreamRef.current;
       if (!stream) return;
 
@@ -1121,6 +1242,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       answer: any;
       conversationId: string;
     }) => {
+      if (agoraManagerRef.current) return;
       const pc = groupPeerConnectionsRef.current.get(data.from);
       if (pc) {
         try {
@@ -1136,6 +1258,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       candidate: any;
       conversationId: string;
     }) => {
+      if (agoraManagerRef.current) return;
       const pc = groupPeerConnectionsRef.current.get(data.from);
       if (pc) {
         try {
@@ -1167,7 +1290,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Handle incoming ephemeral meeting chat messages
     socket.on('group-call-chat-message-received', (msg: GroupChatMessage) => {
-      setGroupCallMessages(prev => [...prev, msg]);
+      setGroupCallMessages(prev => {
+        if (msg.id && prev.some(m => m.id === msg.id)) return prev;
+        if (prev.some(m => m.senderId === msg.senderId && Math.abs(m.timestamp - msg.timestamp) < 500 && m.message === msg.message)) return prev;
+        return [...prev, msg];
+      });
     });
 
     // Handle incoming ephemeral emoji reactions
@@ -1215,42 +1342,58 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Handle force mute by admin/creator
-    socket.on('group-call-force-muted', (data: { conversationId: string }) => {
+    socket.on('group-call-force-muted', async (data: { conversationId: string; byUserId?: string }) => {
+      console.log('[Agora/CallContext] Received group-call-force-muted');
+      setIsGroupMuted(true);
+      if (agoraManagerRef.current) {
+        await agoraManagerRef.current.setAudioMuted(true);
+      }
       const stream = groupLocalStreamRef.current;
       if (stream) {
-        const audioTrack = stream.getAudioTracks()[0];
-        if (audioTrack && audioTrack.enabled) {
-          audioTrack.enabled = false;
-          setIsGroupMuted(true);
-          const videoTrack = stream.getVideoTracks()[0];
-          socket.emit('group-call-media-state', {
-            conversationId: data.conversationId,
-            videoEnabled: videoTrack ? videoTrack.enabled : false,
-            audioEnabled: false,
-            handRaised: isHandRaisedRef.current,
-            footRaised: isFootRaisedRef.current,
-          });
-        }
+        stream.getAudioTracks().forEach(t => { t.enabled = false; });
+      }
+      if (user) {
+        setGroupMutedUserIds(prev => new Set(prev).add(user.id));
+      }
+      if (socket && activeGroupCallRef.current) {
+        const videoTrack = stream?.getVideoTracks()[0];
+        socket.emit('group-call-media-state', {
+          conversationId: data.conversationId,
+          videoEnabled: videoTrack ? videoTrack.enabled : false,
+          audioEnabled: false,
+          handRaised: isHandRaisedRef.current,
+          footRaised: isFootRaisedRef.current,
+        });
       }
     });
 
     // Handle force unmute by admin/creator
-    socket.on('group-call-force-unmuted', (data: { conversationId: string }) => {
+    socket.on('group-call-force-unmuted', async (data: { conversationId: string; byUserId?: string }) => {
+      console.log('[Agora/CallContext] Received group-call-force-unmuted');
+      setIsGroupMuted(false);
+      if (agoraManagerRef.current) {
+        await agoraManagerRef.current.setAudioMuted(false);
+      }
       const stream = groupLocalStreamRef.current;
       if (stream) {
-        const audioTrack = stream.getAudioTracks()[0];
-        if (audioTrack && !audioTrack.enabled) {
-          audioTrack.enabled = true;
-          setIsGroupMuted(false);
-          const videoTrack = stream.getVideoTracks()[0];
-          socket.emit('group-call-media-state', {
-            conversationId: data.conversationId,
-            videoEnabled: videoTrack ? videoTrack.enabled : false,
-            audioEnabled: true,
-            handRaised: isHandRaisedRef.current,
-            footRaised: isFootRaisedRef.current,
-          });
-        }
+        stream.getAudioTracks().forEach(t => { t.enabled = true; });
+      }
+      if (user) {
+        setGroupMutedUserIds(prev => {
+          const next = new Set(prev);
+          next.delete(user.id);
+          return next;
+        });
+      }
+      if (socket && activeGroupCallRef.current) {
+        const videoTrack = stream?.getVideoTracks()[0];
+        socket.emit('group-call-media-state', {
+          conversationId: data.conversationId,
+          videoEnabled: videoTrack ? videoTrack.enabled : false,
+          audioEnabled: true,
+          handRaised: isHandRaisedRef.current,
+          footRaised: isFootRaisedRef.current,
+        });
       }
     });
 
@@ -1275,6 +1418,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ─── Group Call Actions ───
 
+  // ─── Group Call Actions ───
+
   const startGroupCall = useCallback(async (
     conversationId: string,
     groupName: string,
@@ -1283,12 +1428,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!socket || !user) return;
 
     try {
-      const stream = await initMedia(type, true);
-      setGroupLocalStream(stream);
-      groupLocalStreamRef.current = stream;
-      setIsGroupMuted(false);
-      setIsGroupVideoMuted(type === 'VIDEO' ? false : true);
-
       setActiveGroupCall({
         role: 'initiator',
         type,
@@ -1298,9 +1437,27 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         participants: [],
       });
 
+      // Join Agora RTC Channel
+      let stream: MediaStream;
+      if (agoraManagerRef.current) {
+        const agoraRes = await agoraManagerRef.current.joinChannel({
+          channelName: conversationId,
+          userId: user.id,
+          type,
+        });
+        stream = agoraRes.localStream;
+      } else {
+        stream = await initMedia(type, true);
+      }
+
+      setGroupLocalStream(stream);
+      groupLocalStreamRef.current = stream;
+      setIsGroupMuted(false);
+      setIsGroupVideoMuted(type === 'VIDEO' ? false : true);
+
       socket.emit('group-call-initiate', { conversationId, type });
     } catch (e) {
-      console.error('Failed to start group call', e);
+      console.error('Failed to start group call with Agora', e);
       cleanupGroupCall();
     }
   }, [socket, user, cleanupGroupCall]);
@@ -1309,7 +1466,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const activeConvoId = convoIdToJoin && typeof convoIdToJoin === 'string' ? convoIdToJoin : activeGroupCall?.conversationId || currentConvoId;
     const callType = convoTypeToJoin && typeof convoTypeToJoin === 'string' ? convoTypeToJoin : activeGroupCall?.type || groupCallStatus?.type || 'VIDEO';
 
-    if (!activeConvoId || !socket) return;
+    if (!activeConvoId || !socket || !user) return;
 
     try {
       audioSynthRef.current?.stop();
@@ -1323,7 +1480,19 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         participants: activeGroupCall?.participants || [],
       });
 
-      const stream = await initMedia(callType, true);
+      // Join Agora RTC Channel
+      let stream: MediaStream;
+      if (agoraManagerRef.current) {
+        const agoraRes = await agoraManagerRef.current.joinChannel({
+          channelName: activeConvoId,
+          userId: user.id,
+          type: callType,
+        });
+        stream = agoraRes.localStream;
+      } else {
+        stream = await initMedia(callType, true);
+      }
+
       setGroupLocalStream(stream);
       groupLocalStreamRef.current = stream;
       setIsGroupMuted(false);
@@ -1334,10 +1503,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: callType,
       });
     } catch (e) {
-      console.error('Failed to join group call', e);
+      console.error('Failed to join group call with Agora', e);
       cleanupGroupCall();
     }
-  }, [activeGroupCall, groupCallStatus, currentConvoId, socket, cleanupGroupCall]);
+  }, [activeGroupCall, groupCallStatus, currentConvoId, socket, user, cleanupGroupCall]);
 
   const rejectGroupCall = useCallback(() => {
     if (!activeGroupCall || !socket) return;
@@ -1359,63 +1528,85 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [activeGroupCall, currentConvoId, socket, groupCallDuration, cleanupGroupCall]);
 
   const toggleGroupMute = useCallback(() => {
-    const stream = groupLocalStreamRef.current;
-    if (!stream) return;
-    const audioTrack = stream.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      setIsGroupMuted(!audioTrack.enabled);
+    const nextMuted = !isGroupMuted;
+    setIsGroupMuted(nextMuted);
 
-      if (socket && activeGroupCallRef.current) {
-        const videoTrack = stream.getVideoTracks()[0];
-        socket.emit('group-call-media-state', {
-          conversationId: activeGroupCallRef.current.conversationId,
-          videoEnabled: videoTrack ? videoTrack.enabled : false,
-          audioEnabled: audioTrack.enabled,
-          handRaised: isHandRaisedRef.current,
-          footRaised: isFootRaisedRef.current,
-        });
+    if (agoraManagerRef.current) {
+      agoraManagerRef.current.setAudioMuted(nextMuted);
+    }
+
+    const stream = groupLocalStreamRef.current;
+    if (stream) {
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !nextMuted;
       }
     }
-  }, [socket]);
+
+    if (user) {
+      setGroupMutedUserIds(prev => {
+        const next = new Set(prev);
+        if (nextMuted) {
+          next.add(user.id);
+        } else {
+          next.delete(user.id);
+        }
+        return next;
+      });
+    }
+
+    if (socket && activeGroupCallRef.current) {
+      const videoTrack = stream ? stream.getVideoTracks()[0] : null;
+      socket.emit('group-call-media-state', {
+        conversationId: activeGroupCallRef.current.conversationId,
+        videoEnabled: videoTrack ? videoTrack.enabled : false,
+        audioEnabled: !nextMuted,
+        handRaised: isHandRaisedRef.current,
+        footRaised: isFootRaisedRef.current,
+      });
+    }
+  }, [socket, isGroupMuted, user]);
 
   const toggleGroupVideo = useCallback(() => {
-    const stream = groupLocalStreamRef.current;
-    if (!stream) return;
-    const videoTrack = stream.getVideoTracks()[0];
-    if (videoTrack) {
-      videoTrack.enabled = !videoTrack.enabled;
-      setIsGroupVideoMuted(!videoTrack.enabled);
+    const nextVideoMuted = !isGroupVideoMuted;
+    setIsGroupVideoMuted(nextVideoMuted);
 
-      if (socket && activeGroupCallRef.current) {
-        socket.emit('group-call-media-state', {
-          conversationId: activeGroupCallRef.current.conversationId,
-          videoEnabled: videoTrack.enabled,
-          audioEnabled: !isGroupMuted,
-          handRaised: isHandRaisedRef.current,
-          footRaised: isFootRaisedRef.current,
-        });
+    if (agoraManagerRef.current) {
+      agoraManagerRef.current.setVideoMuted(nextVideoMuted);
+    }
+
+    const stream = groupLocalStreamRef.current;
+    if (stream) {
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !nextVideoMuted;
       }
     }
-  }, [socket, isGroupMuted]);
+
+    if (socket && activeGroupCallRef.current) {
+      socket.emit('group-call-media-state', {
+        conversationId: activeGroupCallRef.current.conversationId,
+        videoEnabled: !nextVideoMuted,
+        audioEnabled: !isGroupMuted,
+        handRaised: isHandRaisedRef.current,
+        footRaised: isFootRaisedRef.current,
+      });
+    }
+  }, [socket, isGroupVideoMuted, isGroupMuted]);
 
   const toggleGroupScreenShare = useCallback(async () => {
-    const stream = groupLocalStreamRef.current;
-    if (!stream) return;
-
     if (!isGroupScreenSharing) {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const screenTrack = screenStream.getVideoTracks()[0];
-        groupScreenTrackRef.current = screenTrack;
-
-        for (const [, pc] of groupPeerConnectionsRef.current) {
-          const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
-          if (videoSender) {
-            await videoSender.replaceTrack(screenTrack);
-            applyGroupSenderEncodingParams(pc, true);
-          }
+        let screenTrack: MediaStreamTrack | null = null;
+        if (agoraManagerRef.current) {
+          screenTrack = await agoraManagerRef.current.startScreenShare();
+        } else {
+          const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          screenTrack = screenStream.getVideoTracks()[0];
         }
+
+        if (!screenTrack) return;
+        groupScreenTrackRef.current = screenTrack;
 
         screenTrack.onended = () => {
           stopGroupScreenShareHelper();
@@ -1424,11 +1615,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsGroupScreenSharing(true);
 
         if (socket && activeGroupCallRef.current) {
-          const audioTrack = stream.getAudioTracks()[0];
           socket.emit('group-call-media-state', {
             conversationId: activeGroupCallRef.current.conversationId,
             videoEnabled: true,
-            audioEnabled: audioTrack ? audioTrack.enabled : !isGroupMuted,
+            audioEnabled: !isGroupMuted,
             handRaised: isHandRaisedRef.current,
             footRaised: isFootRaisedRef.current,
             isScreenSharing: true,
@@ -1440,28 +1630,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       stopGroupScreenShareHelper();
     }
-  }, [isGroupScreenSharing, isGroupMuted, socket, applyGroupSenderEncodingParams]);
+  }, [isGroupScreenSharing, isGroupMuted, socket]);
 
   const stopGroupScreenShareHelper = useCallback(async () => {
+    if (agoraManagerRef.current) {
+      await agoraManagerRef.current.stopScreenShare();
+    }
     if (groupScreenTrackRef.current) {
       groupScreenTrackRef.current.stop();
       groupScreenTrackRef.current = null;
     }
-
-    const stream = groupLocalStreamRef.current;
-    if (stream) {
-      const webcamTrack = stream.getVideoTracks()[0];
-      for (const [, pc] of groupPeerConnectionsRef.current) {
-        const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
-        if (videoSender && webcamTrack) {
-          await videoSender.replaceTrack(webcamTrack);
-          applyGroupSenderEncodingParams(pc, false);
-        }
-      }
-    }
     setIsGroupScreenSharing(false);
 
     if (socket && activeGroupCallRef.current) {
+      const stream = groupLocalStreamRef.current;
       const videoTrack = stream ? stream.getVideoTracks()[0] : null;
       const audioTrack = stream ? stream.getAudioTracks()[0] : null;
       socket.emit('group-call-media-state', {
@@ -1473,13 +1655,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isScreenSharing: false,
       });
     }
-  }, [socket, isGroupMuted, applyGroupSenderEncodingParams]);
+  }, [socket, isGroupMuted]);
 
   const sendGroupCallMessage = useCallback((message: string) => {
     const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
     if (!activeCallConvoId || !socket || !message.trim()) return;
 
+    const msgId = `${user?.id || 'anon'}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const msgData: GroupChatMessage = {
+      id: msgId,
       senderId: user?.id || 'unknown',
       senderName: user?.name || user?.username || 'You',
       message: message.trim(),
@@ -1491,6 +1675,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Send to other peers
     socket.emit('group-call-chat-message', {
+      id: msgId,
       conversationId: activeCallConvoId,
       message: msgData.message,
       senderName: msgData.senderName,
@@ -1518,8 +1703,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const adminMuteAll = useCallback(() => {
     const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
     if (!activeCallConvoId || !socket) return;
+    if (activeGroupCall?.participants) {
+      setGroupMutedUserIds(prev => {
+        const next = new Set(prev);
+        activeGroupCall.participants.forEach(p => {
+          if (p.userId !== user?.id) next.add(p.userId);
+        });
+        return next;
+      });
+    }
     socket.emit('group-call-admin-mute-all', { conversationId: activeCallConvoId });
-  }, [activeGroupCall, currentConvoId, socket]);
+  }, [activeGroupCall, currentConvoId, socket, user]);
 
   const toggleHandRaise = useCallback(() => {
     setIsHandRaised(prev => {
@@ -1576,12 +1770,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const adminMuteUser = useCallback((targetUserId: string) => {
     const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
     if (!activeCallConvoId || !socket) return;
+    setGroupMutedUserIds(prev => new Set(prev).add(targetUserId));
     socket.emit('group-call-admin-mute-user', { conversationId: activeCallConvoId, targetUserId });
   }, [activeGroupCall, currentConvoId, socket]);
 
   const adminUnmuteUser = useCallback((targetUserId: string) => {
     const activeCallConvoId = activeGroupCall?.conversationId || currentConvoId;
     if (!activeCallConvoId || !socket) return;
+    setGroupMutedUserIds(prev => {
+      const next = new Set(prev);
+      next.delete(targetUserId);
+      return next;
+    });
     socket.emit('group-call-admin-unmute-user', { conversationId: activeCallConvoId, targetUserId });
   }, [activeGroupCall, currentConvoId, socket]);
 
@@ -1600,6 +1800,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isMuted,
         isVideoMuted,
         isScreenSharing,
+        isPeerVideoMuted,
+        isPeerScreenSharing,
         startCall,
         acceptCall,
         rejectCall,

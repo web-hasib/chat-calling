@@ -4,10 +4,11 @@ import { AuthProvider } from '../context/AuthContext';
 import { SocketProvider } from '../context/SocketContext';
 import { CallProvider } from '../context/CallContext';
 import CallOverlay from '../components/CallOverlay';
+import { ServiceWorkerRegister } from '../components/ServiceWorkerRegister';
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: 'Minimal Messenger & Calling App',
@@ -42,8 +43,26 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('theme');
+                  if (saved === 'light') {
+                    document.documentElement.classList.add('light-theme');
+                    document.addEventListener('DOMContentLoaded', function() {
+                      document.body.classList.add('light-theme');
+                    });
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
       </head>
       <body>
+        <ServiceWorkerRegister />
         <AuthProvider>
           <SocketProvider>
             <CallProvider>
